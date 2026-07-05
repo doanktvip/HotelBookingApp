@@ -10,6 +10,7 @@ HotelBookingApp/
 │   ├── __init__.py             # Cấu hình Application Factory
 │   ├── extensions.py           # Khởi tạo db, migrate, login_manager
 │   ├── models.py               # Toàn bộ database models liên kết nhau (User, Hotel, Room, Booking)
+│   ├── utils.py                # Các hàm tiện ích
 │   ├── services/               # Tầng xử lý logic nghiệp vụ & truy vấn Database (Service Layer)
 │   │   └── __init__.py
 │   ├── routes/                 # Thư mục chứa các phân hệ routes (Đón request & điều hướng)
