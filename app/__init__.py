@@ -1,14 +1,7 @@
 import os
-import time
 from flask import Flask
 from config import config_by_name
 from app.extensions import db, login_manager
-
-# Cấu hình múi giờ Việt Nam (GMT+7)
-if os.name != 'nt':
-    os.environ['TZ'] = 'Asia/Ho_Chi_Minh'
-    if hasattr(time, 'tzset'):
-        time.tzset()
 
 
 def create_app(config_name=None):
@@ -26,10 +19,11 @@ def create_app(config_name=None):
     db.init_app(app)
     login_manager.init_app(app)
 
-    # Đăng ký Blueprints
-    from app.routes.main import main_bp
+    # Đăng ký Blueprints tự động
+    from app.routes import all_blueprints
 
-    app.register_blueprint(main_bp)
+    for bp in all_blueprints:
+        app.register_blueprint(bp)
 
     # Thiết lập user_loader cho Flask-Login
     from app.models import User

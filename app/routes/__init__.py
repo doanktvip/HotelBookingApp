@@ -1,1 +1,3 @@
-# Thư mục chứa các module routes (Blueprints) của ứng dụng.
+from .main import main_bp
+
+all_blueprints = [main_bp]

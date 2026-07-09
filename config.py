@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
-# Load environment variables from .env file
 load_dotenv()
 
 
@@ -9,15 +9,13 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Construct MySQL database URL from environment variables
-    DB_USER = os.environ.get('DB_USER')
-    DB_PASSWORD = os.environ.get('DB_PASSWORD')
-    DB_HOST = os.environ.get('DB_HOST')
-    DB_PORT = os.environ.get('DB_PORT')
-    DB_NAME = os.environ.get('DB_NAME')
+    _db_user = os.environ.get('DB_USER')
+    _db_password = os.environ.get('DB_PASSWORD')
+    _db_host = os.environ.get('DB_HOST')
+    _db_port = os.environ.get('DB_PORT')
+    _db_name = os.environ.get('DB_NAME')
 
-    # MySQL connection string using PyMySQL
-    SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{_db_user}:{_db_password}@{_db_host}:{_db_port}/{_db_name}"
 
 
 class DevelopmentConfig(Config):
@@ -26,12 +24,16 @@ class DevelopmentConfig(Config):
 
 class TestingConfig(Config):
     TESTING = True
-    # In-memory SQLite database is perfect for running fast automated tests
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 
 class ProductionConfig(Config):
     DEBUG = False
+    SESSION_COOKIE_SECURE = True  # Chỉ truyền cookie qua HTTPS
+    SESSION_COOKIE_HTTPONLY = True  # Chống XSS (JS không đọc được cookie)
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Chống CSRF
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)  # Ép đăng nhập lại sau 7 ngày
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # Tối đa 16MB mỗi file (chống hacker up file lớn)
 
 
 config_by_name = {
