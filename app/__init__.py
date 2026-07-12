@@ -26,10 +26,11 @@ def create_app(config_name=None):
         app.register_blueprint(bp)
 
     # Thiết lập user_loader cho Flask-Login
-    from app.models import User
+    from app.services import UserService
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        user_service = UserService(db_session=db.session)
+        return user_service.get_user_by_id(int(user_id))
 
     return app
