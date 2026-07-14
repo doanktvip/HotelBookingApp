@@ -1,0 +1,107 @@
+{% extends 'layout/base.html' %}
+{% import 'layout/macros.html' as ui %}
+
+{% block title %}Trang Chủ - Test Component{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="fw-bold">Giao Diện Thử Nghiệm Component</h1>
+    <p class="text-muted">Trang này dùng để test 6 components (macros) vừa tạo.</p>
+    <hr>
+</div>
+
+<!-- ==========================================
+     1. TEST ALERT
+     ========================================== -->
+<div class="mb-5 p-4 border rounded bg-light">
+    <h4 class="mb-3 text-primary">1. Alert Component</h4>
+    {{ ui.render_alert('Chào mừng bạn đến với hệ thống quản lý Khách sạn!', 'success') }}
+    {{ ui.render_alert('Cảnh báo: Tính năng thanh toán đang bảo trì.', 'warning') }}
+    {{ ui.render_alert('Cảnh báo lỗi! Không thể kết nối đến cơ sở dữ liệu.', 'danger') }}
+    {{ ui.render_alert('Hello beautiful world,welcome to my life!', 'info') }}
+</div>
+
+<!-- ==========================================
+     2. TEST STATUS BADGE
+     ========================================== -->
+<div class="mb-5 p-4 border rounded bg-light">
+    <h4 class="mb-3 text-primary">2. Status Badge Component</h4>
+    <div class="d-flex gap-2 fs-5">
+        {{ ui.render_status_badge('PENDING') }}
+        {{ ui.render_status_badge('CONFIRMED') }}
+        {{ ui.render_status_badge('COMPLETED') }}
+        {{ ui.render_status_badge('CANCELLED') }}
+        {{ ui.render_status_badge('UNKNOWN') }}
+    </div>
+</div>
+
+<!-- ==========================================
+     3. TEST HIỂN THỊ DANH SÁCH CÓ PHÂN TRANG
+     ========================================== -->
+<div class="mb-5 p-4 border rounded bg-light">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="text-primary mb-0">3. Demo Danh Sách Phòng & Phân Trang</h4>
+        <span class="badge bg-secondary">Tổng cộng: {{ pagination.total }} phòng</span>
+    </div>
+    
+    <!-- Render lưới danh sách phòng (6 phòng / trang) -->
+    <div class="row g-4">
+        {% for room in pagination.items %}
+            <div class="col-md-4">
+                {{ ui.render_room_card(room) }}
+            </div>
+        {% else %}
+            <div class="col-12 text-center text-muted py-5">
+                Không tìm thấy phòng nào ở trang này.
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Render bộ phân trang ở dưới cùng -->
+    <div class="mt-5">
+        {{ ui.render_pagination(pagination, 'main.index') }}
+    </div>
+</div>
+
+<!-- ==========================================
+     4 & 5. TEST MODAL + FORM INPUT
+     ========================================== -->
+<div class="mb-5 p-4 border rounded bg-light">
+    <h4 class="mb-3 text-primary">4 & 5. Modal & Form Input Component</h4>
+
+    <h5 class="mt-3">Nút mở Modal (kết hợp thuộc tính tuỳ chỉnh)</h5>
+    <!-- Dùng Button Component để tạo nút kích hoạt Modal thay vì viết HTML thuần -->
+    {{ ui.render_button('Mở Form Đăng Nhập bằng Component', style='dark', attrs='data-bs-toggle="modal" data-bs-target="#testLoginModal"') }}
+
+    <!-- Gọi khuôn đúc Modal ra xài -->
+    {% call ui.render_modal('testLoginModal', 'Đăng Nhập Quản Trị Viên') %}
+    <form action="#" method="POST">
+        <!-- Dùng khuôn đúc Input để tạo ô nhập liệu nhanh chóng -->
+        {{ ui.render_input('username', 'Tên đăng nhập', placeholder='Nhập tên tài khoản...', required=True) }}
+        {{ ui.render_input('password', 'Mật khẩu', type='password', placeholder='***', required=True) }}
+
+        <div class="d-flex justify-content-end mt-4">
+            {{ ui.render_button('Hủy bỏ', style='secondary', extra_classes='me-2', attrs='data-bs-dismiss="modal"') }}
+            {{ ui.render_button('Xác nhận Đăng Nhập', style='primary', type='submit') }}
+        </div>
+    </form>
+    {% endcall %}
+</div>
+
+<!-- ==========================================
+     6. TEST BUTTON COMPONENT
+     ========================================== -->
+<div class="mb-5 p-4 border rounded bg-light">
+    <h4 class="mb-3 text-primary">6. Button Component</h4>
+
+    <div class="d-flex gap-2 mb-3">
+        {{ ui.render_button('Nút cơ bản') }}
+        {{ ui.render_button('Thành công', style='success') }}
+        {{ ui.render_button('Cảnh báo', style='warning') }}
+        {{ ui.render_button('Xóa', style='danger', size='sm') }}
+        {{ ui.render_button('Nút to', style='info', size='lg') }}
+    </div>
+
+</div>
+
+{% endblock %}

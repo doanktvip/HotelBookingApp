@@ -53,11 +53,14 @@ class User(db.Model, UserMixin):
     password = Column(String(255), nullable=False)  # Mật khẩu (đã được mã hóa/hash)
     phone = Column(String(20), nullable=True)  # Số điện thoại liên hệ
     role = Column(Enum(UserRole, name='user_roles'), default=UserRole.CUSTOMER, nullable=False)  # Phân quyền tài khoản
+    is_verified = Column(Boolean, default=False, nullable=False)  # Cờ xác nhận tài khoản đã verify email chưa
     created_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời gian tạo tài khoản
 
     # Các mối quan hệ (Relationships)
     bookings = db.relationship('Booking', backref='customer', lazy=True, cascade='all, delete-orphan')
+
     search_histories = db.relationship('SearchHistory', backref='user', lazy=True)
+    otps = db.relationship('OTP', backref='owner', lazy=True, cascade='all, delete-orphan')
 
 
 class Hotel(db.Model):
@@ -93,6 +96,7 @@ class RoomType(db.Model):
     base_price = Column(Float, nullable=False)  # Giá niêm yết cơ bản
     max_occupancy = Column(Integer, default=2, nullable=False)  # Số lượng khách tối đa (Sức chứa)
     amenities = Column(Text, nullable=True)  # Các tiện nghi riêng trong phòng (Bồn tắm, Ban công, Tivi 4K...)
+    image_url = Column(String(255), nullable=True)  # Ảnh đại diện cho loại phòng này
 
     # Các mối quan hệ
     rooms = db.relationship('Room', backref='room_type', lazy=True, cascade='all, delete-orphan')
@@ -159,16 +163,16 @@ class Payment(db.Model):
 
 
 class OTP(db.Model):
-    """Lưu trữ mã OTP dùng một lần cho bảo mật đăng nhập/đăng ký"""
+    """Lưu trữ mã OTP dùng một lần, có liên kết trực tiếp với User"""
 
     __tablename__ = 'otp_codes'
 
     id = Column(Integer, primary_key=True)  # ID mã OTP
-    contact = Column(String(150), nullable=False)  # Email hoặc Số điện thoại nhận mã
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # Khóa ngoại nối trực tiếp với bảng User
     otp_code = Column(String(10), nullable=False)  # Chuỗi OTP (VD: 123456)
     created_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời điểm sinh mã
     expires_at = Column(DateTime, nullable=False)  # Thời điểm mã hết hạn (VD: 5 phút sau khi tạo)
-    is_verified = Column(Boolean, default=False)  # Cờ đánh dấu OTP đã được người dùng sử dụng chưa
+    is_used = Column(Boolean, default=False)  # Đánh dấu OTP đã được dùng chưa (tránh Replay Attack)
 
 
 class SystemConfig(db.Model):
@@ -190,7 +194,7 @@ class PricePrediction(db.Model):
     id = Column(Integer, primary_key=True)  # ID đề xuất
     room_type_id = Column(Integer, ForeignKey('room_types.id'), nullable=False)  # Áp dụng cho loại phòng nào
     target_date = Column(Date, nullable=False)  # Ngày áp dụng giá mới (Ví dụ: 30/04/2026)
-    suggested_price = Column(Float, nullable=False)  # Mức giá mới được đề xuất
+    adjustment_percentage = Column(Float, nullable=False)  # Tỉ lệ thay đổi giá so với giá gốc (VD: 0.1 = 10%)
     reason = Column(String(255))  # Lý do đổi giá (Ví dụ: "Lễ 30/4", "Mùa thấp điểm")
     is_applied = Column(Boolean, default=False)  # Trạng thái: Admin đã click đồng ý áp dụng mức giá này chưa?
 

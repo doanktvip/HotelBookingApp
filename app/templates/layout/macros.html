@@ -1,0 +1,128 @@
+<!-- ==========================================
+     THƯ VIỆN COMPONENT (MACROS)
+     ========================================== -->
+
+<!-- 1. Modal Popup -->
+{# Sử dụng với call render_modal('id', 'Title') #}
+{% macro render_modal(modal_id, title) %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="{{ modal_id }}Label">{{ title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {{ caller() }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+
+<!-- 2. Room Card -->
+<!-- Hiển thị một khung thông tin phòng đẹp mắt -->
+{% macro render_room_card(room) %}
+<div class="card h-100 shadow-sm border-0">
+    <img src="{{ room.image_url or url_for('static', filename='images/default_room.jpg') }}" class="card-img-top"
+        alt="{{ room.name }}" style="height: 200px; object-fit: cover;">
+    <div class="card-body d-flex flex-column">
+        <h5 class="card-title fw-bold">{{ room.name }}</h5>
+        <p class="card-text text-muted small text-truncate">{{ room.description }}</p>
+
+        <div class="mt-auto d-flex justify-content-between align-items-center pt-3 border-top">
+            <h6 class="text-primary mb-0 fw-bold">{{"{:,.0f}".format(room.base_price)}} VNĐ</h6>
+            <a href="/room/{{ room.id }}" class="btn btn-sm btn-outline-primary">Chi tiết</a>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+
+<!-- 3. Form Input Chuẩn -->
+<!-- Tạo ô nhập liệu nhanh chóng kèm Label -->
+{% macro render_input(name, label, type='text', placeholder='', value='', required=False) %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label fw-bold">{{ label }} {% if required %}<span class="text-danger">*</span>{%
+        endif %}</label>
+    <input type="{{ type }}" class="form-control" id="{{ name }}" name="{{ name }}" placeholder="{{ placeholder }}"
+        value="{{ value }}" {% if required %}required{% endif %}>
+</div>
+{% endmacro %}
+
+
+<!-- 4. Trạng thái Booking / Badge -->
+<!-- Trả về nhãn màu sắc Bootstrap tương ứng với trạng thái -->
+{% macro render_status_badge(status) %}
+{% if status == 'PENDING' %}
+<span class="badge bg-warning text-dark">Chờ duyệt</span>
+{% elif status == 'CONFIRMED' %}
+<span class="badge bg-success">Đã xác nhận</span>
+{% elif status == 'CANCELLED' %}
+<span class="badge bg-danger">Đã hủy</span>
+{% elif status == 'COMPLETED' %}
+<span class="badge bg-info">Đã hoàn thành</span>
+{% else %}
+<span class="badge bg-secondary">{{ status }}</span>
+{% endif %}
+{% endmacro %}
+
+
+<!-- 5. Alert / Flash Messages -->
+<!-- Hiển thị thông báo (success, danger, warning, info) -->
+{% macro render_alert(message, category='info') %}
+<div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endmacro %}
+
+
+<!-- 6. Button Component -->
+<!-- Trình bày nút bấm tiện lợi với màu sắc, kích thước và thêm thuôc tính tuỳ ý -->
+{% macro render_button(text, style='primary', type='button', size='', extra_classes='', attrs='') %}
+<button type="{{ type }}" class="btn btn-{{ style }}{% if size %} btn-{{ size }}{% endif %} {{ extra_classes }}" {{
+    attrs|safe }}>
+    {{ text }}
+</button>
+{% endmacro %}
+
+
+<!-- 7. Pagination Component -->
+<!-- pagination: Đối tượng Pagination trả về từ Flask-SQLAlchemy (.paginate()) -->
+<!-- endpoint: Tên Route bạn muốn trỏ tới (ví dụ: 'main.index') -->
+{% macro render_pagination(pagination, endpoint) %}
+{% if pagination and pagination.pages > 1 %}
+<nav aria-label="Điều hướng phân trang">
+    <ul class="pagination justify-content-center">
+        <!-- Nút Trở Về Trước -->
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            <a class="page-link"
+                href="{{ url_for(endpoint, page=pagination.prev_num) if pagination.has_prev else '#' }}">
+                &laquo; Trước
+            </a>
+        </li>
+
+        <!-- Các con số trang -->
+        {% for page in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+        {% if page %}
+        <li class="page-item {% if page == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for(endpoint, page=page) }}">{{ page }}</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+        {% endfor %}
+
+        <!-- Nút Tới Trang Sau -->
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            <a class="page-link"
+                href="{{ url_for(endpoint, page=pagination.next_num) if pagination.has_next else '#' }}">
+                Sau &raquo;
+            </a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}
