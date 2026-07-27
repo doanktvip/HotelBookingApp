@@ -1,0 +1,34 @@
+{% extends 'layout/base.html' %}
+{% import 'layout/macros.html' as ui %}
+
+{% block title %}Chi tiết khách sạn{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1 class="fw-bold">{{ hotel.name }}</h1>
+                <p class="text-muted">{{ hotel.address }}</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="row g-4">
+                    {% for room_type in room_types %}
+                    <div class="col-md-6 col-lg-4">
+                        <!-- Dùng Hotel Card Component đã tạo -->
+                        {{ ui.render_hotel_card(room_type, detail_url=url_for('room_type.room_type_detail', room_type_id=room_type.id)) }}
+                    </div>
+                    {% else %}
+                    <div class="col-12 text-center text-muted py-5">
+                        <p class="display-6">Không tìm thấy phòng nào</p>
+                        <p class="lead">Thử điều chỉnh tìm kiếm của bạn</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+{% endblock %}

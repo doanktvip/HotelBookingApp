@@ -14,11 +14,19 @@
      1. TEST ALERT
      ========================================== -->
 <div class="mb-5 p-4 border rounded bg-light">
-    <h4 class="mb-3 text-primary">1. Alert Component</h4>
-    {{ ui.render_alert('Chào mừng bạn đến với hệ thống quản lý Khách sạn!', 'success') }}
-    {{ ui.render_alert('Cảnh báo: Tính năng thanh toán đang bảo trì.', 'warning') }}
-    {{ ui.render_alert('Cảnh báo lỗi! Không thể kết nối đến cơ sở dữ liệu.', 'danger') }}
-    {{ ui.render_alert('Hello beautiful world,welcome to my life!', 'info') }}
+    <h4 class="mb-3 text-primary">1. Alert Component (Toast Notification)</h4>
+    <p class="mb-3">Nhấn vào các nút bên dưới để gọi hàm JavaScript hiển thị thông báo nổi ở góc dưới bên phải màn hình.</p>
+
+    <div class="d-flex flex-wrap gap-2">
+        <!-- Gọi hàm showToastAlert thông qua thuộc tính onclick của component render_button -->
+        {{ ui.render_button('Test Success', style='success', attrs='onclick="showToastAlert(\'Chào mừng bạn đến với hệ thống quản lý Khách sạn!\', \'success\')"') }}
+
+        {{ ui.render_button('Test Warning', style='warning', attrs='onclick="showToastAlert(\'Cảnh báo: Tính năng thanh toán đang bảo trì.\', \'warning\')"') }}
+
+        {{ ui.render_button('Test Danger', style='danger', attrs='onclick="showToastAlert(\'Cảnh báo lỗi! Không thể kết nối đến cơ sở dữ liệu.\', \'danger\')"') }}
+
+        {{ ui.render_button('Test Info', style='info', attrs='onclick="showToastAlert(\'Hello beautiful world, welcome to my life!\', \'info\')"') }}
+    </div>
 </div>
 
 <!-- ==========================================
@@ -26,7 +34,7 @@
      ========================================== -->
 <div class="mb-5 p-4 border rounded bg-light">
     <h4 class="mb-3 text-primary">2. Status Badge Component</h4>
-    <div class="d-flex gap-2 fs-5">
+    <div class="d-flex flex-wrap gap-2 fs-5">
         {{ ui.render_status_badge('PENDING') }}
         {{ ui.render_status_badge('CONFIRMED') }}
         {{ ui.render_status_badge('COMPLETED') }}
@@ -41,25 +49,25 @@
 <div class="mb-5 p-4 border rounded bg-light">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="text-primary mb-0">3. Demo Danh Sách Phòng & Phân Trang</h4>
-        <span class="badge bg-secondary">Tổng cộng: {{ pagination.total }} phòng</span>
+        <span class="badge bg-secondary">Tổng cộng: {{ room_type_pagination.total }} phòng</span>
     </div>
-    
+
     <!-- Render lưới danh sách phòng (6 phòng / trang) -->
     <div class="row g-4">
-        {% for room in pagination.items %}
-            <div class="col-md-4">
-                {{ ui.render_room_card(room) }}
-            </div>
+        {% for room_type in room_type_pagination.items %}
+        <div class="col-12 col-lg-10 mx-auto">
+            {{ ui.render_room_type_card(room_type) }}
+        </div>
         {% else %}
-            <div class="col-12 text-center text-muted py-5">
-                Không tìm thấy phòng nào ở trang này.
-            </div>
+        <div class="col-12 text-center text-muted py-5">
+            Không tìm thấy phòng nào ở trang này.
+        </div>
         {% endfor %}
     </div>
 
     <!-- Render bộ phân trang ở dưới cùng -->
     <div class="mt-5">
-        {{ ui.render_pagination(pagination, 'main.index') }}
+        {{ ui.render_pagination(room_type_pagination, 'main.index') }}
     </div>
 </div>
 
@@ -71,7 +79,8 @@
 
     <h5 class="mt-3">Nút mở Modal (kết hợp thuộc tính tuỳ chỉnh)</h5>
     <!-- Dùng Button Component để tạo nút kích hoạt Modal thay vì viết HTML thuần -->
-    {{ ui.render_button('Mở Form Đăng Nhập bằng Component', style='dark', attrs='data-bs-toggle="modal" data-bs-target="#testLoginModal"') }}
+    {{ ui.render_button('Mở Form Đăng Nhập bằng Component', style='dark', attrs='data-bs-toggle="modal"
+    data-bs-target="#testLoginModal"') }}
 
     <!-- Gọi khuôn đúc Modal ra xài -->
     {% call ui.render_modal('testLoginModal', 'Đăng Nhập Quản Trị Viên') %}
@@ -94,7 +103,7 @@
 <div class="mb-5 p-4 border rounded bg-light">
     <h4 class="mb-3 text-primary">6. Button Component</h4>
 
-    <div class="d-flex gap-2 mb-3">
+    <div class="d-flex flex-wrap gap-2 mb-3">
         {{ ui.render_button('Nút cơ bản') }}
         {{ ui.render_button('Thành công', style='success') }}
         {{ ui.render_button('Cảnh báo', style='warning') }}
@@ -104,4 +113,48 @@
 
 </div>
 
+<!-- ==========================================
+     8. TEST HOTEL CARD COMPONENT
+     ========================================== -->
+<div class="mb-5 p-4 border rounded bg-light">
+    <h4 class="mb-3 text-primary">8. Hotel Card Component</h4>
+    <p class="text-muted mb-4">Giao diện thẻ khách sạn mô phỏng theo thiết kế mới.</p>
+    <div class="row g-4">
+        {% for hotel in hotels %}
+        <div class="col-md-6 col-lg-3">
+            {{ ui.render_hotel_card(hotel, detail_url=url_for('hotel.hotel_detail', hotel_id=hotel.id)) }}
+        </div>
+        {% else %}
+        <div class="col-12 text-center text-muted">Chưa có dữ liệu khách sạn trong Database.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ==========================================
+     9. TEST FILTER CHIPS COMPONENT
+     ========================================== -->
+<div class="mb-5 p-4 border rounded bg-light">
+    <h4 class="mb-3 text-primary">9. Filter Chips Component (Dùng Enum)</h4>
+    
+    {{ ui.render_filter_chips(UserRole, request.args.get('role', 'ALL'), param_name='role') }}
+
+    <hr class="my-4">
+
+    <!-- Giả lập danh sách các tầng bằng Array Dictionary (Jinja hỗ trợ lấy thuộc tính bằng dấu chấm giống hệt Enum) -->
+    {% set floor_options = [
+        {'value': '1', 'label': 'T1'},
+        {'value': '2', 'label': 'T2'},
+        {'value': '3', 'label': 'T3'},
+        {'value': '4', 'label': 'T4'},
+        {'value': '5', 'label': 'T5'}
+    ] %}
+    {{ ui.render_filter_chips(floor_options, request.args.get('floor', 'ALL'), param_name='floor') }}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Nhúng thư viện SocketIO và file cấu hình dùng chung (Chỉ nhúng ở trang nào cần Real-time) -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/socket_client.js') }}"></script>
 {% endblock %}

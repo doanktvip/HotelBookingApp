@@ -8,24 +8,32 @@ from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, Float
 # ================= ENUMS (Các kiểu liệt kê dùng chung) =================
 
 
-class UserRole(enum.Enum):
-    ADMIN = 'ADMIN'  # Quản trị viên hệ thống
-    RECEPTIONIST = 'RECEPTIONIST'  # Nhân viên lễ tân tại quầy
-    CUSTOMER = 'CUSTOMER'  # Khách hàng đặt phòng
+class TextChoices(enum.Enum):
+    def __new__(cls, value, label):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.label = label
+        return obj
 
 
-class RoomStatus(enum.Enum):
-    AVAILABLE = 'AVAILABLE'  # Phòng trống, sẵn sàng cho thuê
-    BOOKED = 'BOOKED'  # Đã có người đặt nhưng chưa check-in
-    OCCUPIED = 'OCCUPIED'  # Khách đang sử dụng (đã check-in)
-    MAINTENANCE = 'MAINTENANCE'  # Phòng đang bảo trì, sửa chữa
+class UserRole(TextChoices):
+    ADMIN = 'ADMIN', 'Quản trị viên'
+    RECEPTIONIST = 'RECEPTIONIST', 'Nhân viên lễ tân'
+    CUSTOMER = 'CUSTOMER', 'Khách hàng'
 
 
-class BookingStatus(enum.Enum):
-    PENDING = 'PENDING'  # Chờ thanh toán
-    CONFIRMED = 'CONFIRMED'  # Đã xác nhận (sau khi thanh toán 100%)
-    CANCELLED = 'CANCELLED'  # Đã hủy đơn
-    COMPLETED = 'COMPLETED'  # Hoàn tất (khách đã check-out)
+class RoomStatus(TextChoices):
+    AVAILABLE = 'AVAILABLE', 'Trống'
+    BOOKED = 'BOOKED', 'Đã đặt'
+    OCCUPIED = 'OCCUPIED', 'Đang ở'
+    MAINTENANCE = 'MAINTENANCE', 'Bảo trì'
+
+
+class BookingStatus(TextChoices):
+    PENDING = 'PENDING', 'Chờ thành toán'
+    CONFIRMED = 'CONFIRMED', 'Đã xác nhận'
+    CANCELLED = 'CANCELLED', 'Đã hủy đơn'
+    COMPLETED = 'COMPLETED', 'Hoàn tất'
 
 
 class PaymentMethod(enum.Enum):
@@ -33,10 +41,10 @@ class PaymentMethod(enum.Enum):
     # VNPAY = 'VNPAY'
 
 
-class PaymentStatus(enum.Enum):
-    PENDING = 'PENDING'  # Đang chờ xử lý
-    SUCCESS = 'SUCCESS'  # Giao dịch thành công
-    FAILED = 'FAILED'  # Giao dịch thất bại
+class PaymentStatus(TextChoices):
+    PENDING = 'PENDING', 'Đang chờ'
+    SUCCESS = 'SUCCESS', 'Thành công'
+    FAILED = 'FAILED', 'Thất bại'
 
 
 # ================= MODELS (Định nghĩa Cơ sở dữ liệu) =================
@@ -55,6 +63,7 @@ class User(db.Model, UserMixin):
     role = Column(Enum(UserRole, name='user_roles'), default=UserRole.CUSTOMER, nullable=False)  # Phân quyền tài khoản
     is_verified = Column(Boolean, default=False, nullable=False)  # Cờ xác nhận tài khoản đã verify email chưa
     created_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời gian tạo tài khoản
+    avatar_url = Column(String(255), nullable=True)
 
     # Các mối quan hệ (Relationships)
     bookings = db.relationship('Booking', backref='customer', lazy=True, cascade='all, delete-orphan')
@@ -77,11 +86,24 @@ class Hotel(db.Model):
     amenities = Column(Text, nullable=True)  # Các tiện nghi chung (như: Wifi, Hồ bơi, Bãi đỗ xe...)
     cancellation_policy_days = Column(Integer, default=7, nullable=False)  # Số ngày được phép hủy phòng
     created_at = Column(DateTime, default=get_vn_time, nullable=False)  # Ngày đăng ký khách sạn lên hệ thống
+    image_url = Column(String(255), nullable=True)
 
     # Các mối quan hệ
     rooms = db.relationship('Room', backref='hotel', lazy=True, cascade='all, delete-orphan')
     room_types = db.relationship('RoomType', backref='hotel', lazy=True, cascade='all, delete-orphan')
     bookings = db.relationship('Booking', backref='hotel', lazy=True)
+
+    @property
+    def min_price(self):
+        if self.room_types:
+            return min([rt.base_price for rt in self.room_types])
+        return 0.0
+
+    @property
+    def tags(self):
+        if self.amenities:
+            return [tag.strip() for tag in self.amenities.split(',') if tag.strip()]
+        return []
 
 
 class RoomType(db.Model):
@@ -95,6 +117,8 @@ class RoomType(db.Model):
     description = Column(Text, nullable=True)  # Mô tả chi tiết không gian phòng
     base_price = Column(Float, nullable=False)  # Giá niêm yết cơ bản
     max_occupancy = Column(Integer, default=2, nullable=False)  # Số lượng khách tối đa (Sức chứa)
+    bed_count = Column(Integer, default=1, nullable=False)  # Số lượng giường trong phòng
+    bed_type = Column(String(50), nullable=True)  # Loại giường (Vd: 1 Giường đôi lớn, 2 Giường đơn...)
     amenities = Column(Text, nullable=True)  # Các tiện nghi riêng trong phòng (Bồn tắm, Ban công, Tivi 4K...)
     image_url = Column(String(255), nullable=True)  # Ảnh đại diện cho loại phòng này
 

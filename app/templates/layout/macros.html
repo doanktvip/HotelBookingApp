@@ -2,18 +2,75 @@
      THƯ VIỆN COMPONENT (MACROS)
      ========================================== -->
 
-<!-- 1. Modal Popup -->
+<!-- 1. Modal Popup đã sửa xong -->
 {# Sử dụng với call render_modal('id', 'Title') #}
 {% macro render_modal(modal_id, title) %}
 <div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="{{ modal_id }}Label">{{ title }}</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content custom-staynow-modal">
+
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold fs-5 text-dark" id="{{ modal_id }}Label">{{ title }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+
+            <div class="modal-body px-4 pb-4 mt-2">
                 {{ caller() }}
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+<!-- 2. Room Card đã sửa xong -->
+{% macro render_room_type_card(room_type) %}
+<div class="card border-0 shadow-sm mb-4 custom-room-card" style="border-radius: 16px; border: 1px solid #eaeaea !important; overflow: hidden;">
+    <div class="row g-0 h-100">
+        <!-- Image Section -->
+        <div class="col-md-4 position-relative" style="min-height: 220px;">
+            <img src="{{ room_type.image_url or url_for('static', filename='image/default_room_type.png') }}" 
+                 class="position-absolute top-0 start-0 w-100 h-100" 
+                 alt="{{ room_type.name }}" 
+                 style="object-fit: cover; z-index: 1;">
+        </div>
+        
+        <!-- Content Section -->
+        <div class="col-md-8">
+            <div class="card-body d-flex flex-column h-100 p-4">
+                <!-- Header: Title & Price -->
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title fw-bold text-dark mb-0" style="font-size: 1.3rem;">{{ room_type.name }}</h5>
+                    <div class="text-end ms-3">
+                        <span class="text-primary fw-bold" style="font-size: 1.5rem; color: #1d4ed8 !important;">{{ "{:,.0f}".format(room_type.base_price) }} VNĐ</span>
+                        <span class="text-muted" style="font-size: 0.85rem;">/đêm</span>
+                    </div>
+                </div>
+                
+                <!-- Description -->
+                <p class="card-text text-muted mb-4" style="font-size: 0.95rem;">
+                    {{ room_type.description }}
+                </p>
+                
+                <!-- Amenities / Info -->
+                <div class="d-flex align-items-center text-muted gap-4 mb-3" style="font-size: 0.9rem;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-people me-2"></i>
+                        {{ room_type.max_occupancy }} khách
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-inbox me-2"></i>
+                        {{ room_type.bed_count }} {{ room_type.bed_type }}
+                    </div>
+                </div>
+                
+                <!-- Footer: Action Button -->
+                <div class="mt-auto d-flex justify-content-end">
+                    <a href="/room-type/{{ room_type.id }}" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm" style="font-weight: 600; background-color: #2563eb; border: none;">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Đặt phòng này
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -21,77 +78,53 @@
 {% endmacro %}
 
 
-<!-- 2. Room Card -->
-<!-- Hiển thị một khung thông tin phòng đẹp mắt -->
-{% macro render_room_card(room) %}
-<div class="card h-100 shadow-sm border-0">
-    <img src="{{ room.image_url or url_for('static', filename='images/default_room.jpg') }}" class="card-img-top"
-        alt="{{ room.name }}" style="height: 200px; object-fit: cover;">
-    <div class="card-body d-flex flex-column">
-        <h5 class="card-title fw-bold">{{ room.name }}</h5>
-        <p class="card-text text-muted small text-truncate">{{ room.description }}</p>
-
-        <div class="mt-auto d-flex justify-content-between align-items-center pt-3 border-top">
-            <h6 class="text-primary mb-0 fw-bold">{{"{:,.0f}".format(room.base_price)}} VNĐ</h6>
-            <a href="/room/{{ room.id }}" class="btn btn-sm btn-outline-primary">Chi tiết</a>
-        </div>
-    </div>
-</div>
-{% endmacro %}
-
-
-<!-- 3. Form Input Chuẩn -->
-<!-- Tạo ô nhập liệu nhanh chóng kèm Label -->
+<!-- 3. Form Input Chuẩn chưa sửa xong -->
 {% macro render_input(name, label, type='text', placeholder='', value='', required=False) %}
 <div class="mb-3">
     <label for="{{ name }}" class="form-label fw-bold">{{ label }} {% if required %}<span class="text-danger">*</span>{%
         endif %}</label>
     <input type="{{ type }}" class="form-control" id="{{ name }}" name="{{ name }}" placeholder="{{ placeholder }}"
-        value="{{ value }}" {% if required %}required{% endif %}>
+           value="{{ value }}" {% if required %}required{% endif %}>
 </div>
 {% endmacro %}
 
 
-<!-- 4. Trạng thái Booking / Badge -->
-<!-- Trả về nhãn màu sắc Bootstrap tương ứng với trạng thái -->
+<!-- 4. Trạng thái Booking / Badge chưa sửa xong-->
 {% macro render_status_badge(status) %}
 {% if status == 'PENDING' %}
-<span class="badge bg-warning text-dark">Chờ duyệt</span>
+    <span class="badge bg-warning text-dark">Chờ duyệt</span>
 {% elif status == 'CONFIRMED' %}
-<span class="badge bg-success">Đã xác nhận</span>
+    <span class="badge bg-success">Đã xác nhận</span>
 {% elif status == 'CANCELLED' %}
-<span class="badge bg-danger">Đã hủy</span>
+    <span class="badge bg-danger">Đã hủy</span>
 {% elif status == 'COMPLETED' %}
-<span class="badge bg-info">Đã hoàn thành</span>
+    <span class="badge bg-info">Đã hoàn thành</span>
 {% else %}
-<span class="badge bg-secondary">{{ status }}</span>
+    <span class="badge bg-secondary">{{ status }}</span>
 {% endif %}
 {% endmacro %}
 
 
-<!-- 5. Alert / Flash Messages -->
+<!-- 5. Alert / Flash Messages đã sửa xong -->
 <!-- Hiển thị thông báo (success, danger, warning, info) -->
-{% macro render_alert(message, category='info') %}
-<div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-    {{ message }}
+{% macro render_alert(message, category='danger') %}
+<div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm auto-hide-alert mb-0" role="alert">
+    <div class="alert-text">{{ message }}</div>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
 {% endmacro %}
 
 
-<!-- 6. Button Component -->
-<!-- Trình bày nút bấm tiện lợi với màu sắc, kích thước và thêm thuôc tính tuỳ ý -->
+<!-- 6. Button Component chưa sửa xong -->
 {% macro render_button(text, style='primary', type='button', size='', extra_classes='', attrs='') %}
 <button type="{{ type }}" class="btn btn-{{ style }}{% if size %} btn-{{ size }}{% endif %} {{ extra_classes }}" {{
-    attrs|safe }}>
+        attrs|safe }}>
     {{ text }}
 </button>
 {% endmacro %}
 
 
-<!-- 7. Pagination Component -->
-<!-- pagination: Đối tượng Pagination trả về từ Flask-SQLAlchemy (.paginate()) -->
-<!-- endpoint: Tên Route bạn muốn trỏ tới (ví dụ: 'main.index') -->
+<!-- 7. Pagination Component chưa sửa xong -->
 {% macro render_pagination(pagination, endpoint) %}
 {% if pagination and pagination.pages > 1 %}
 <nav aria-label="Điều hướng phân trang">
@@ -99,7 +132,7 @@
         <!-- Nút Trở Về Trước -->
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
             <a class="page-link"
-                href="{{ url_for(endpoint, page=pagination.prev_num) if pagination.has_prev else '#' }}">
+               href="{{ url_for(endpoint, page=pagination.prev_num) if pagination.has_prev else '#' }}">
                 &laquo; Trước
             </a>
         </li>
@@ -118,11 +151,77 @@
         <!-- Nút Tới Trang Sau -->
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
             <a class="page-link"
-                href="{{ url_for(endpoint, page=pagination.next_num) if pagination.has_next else '#' }}">
+               href="{{ url_for(endpoint, page=pagination.next_num) if pagination.has_next else '#' }}">
                 Sau &raquo;
             </a>
         </li>
     </ul>
 </nav>
 {% endif %}
+{% endmacro %}
+
+<!-- 8. Hotel Card đã sửa xong-->
+{% macro render_hotel_card(hotel, detail_url='#') %}
+<a href="{{ detail_url }}" class="card h-100 border-0 custom-hotel-card text-decoration-none text-dark">
+    <!-- Hình ảnh -->
+    <div style="position: relative; padding-top: 65%; overflow: hidden;">
+        <img src="{{ hotel.image_url or url_for('static', filename='image/default_hotel.png') }}" class="position-absolute top-0 start-0 w-100 h-100"
+             alt="{{ hotel.name }}" style="object-fit: cover;">
+    </div>
+    
+    <!-- Nội dung -->
+    <div class="card-body d-flex flex-column p-3">
+        <!-- Tên và Đánh giá -->
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <h6 class="card-title fw-bold text-dark mb-0 text-truncate pe-2" style="font-size: 1.1rem; line-height: 1.4;">{{ hotel.name }}</h6>
+            <div class="d-flex align-items-center text-warning" style="font-size: 0.95rem;">
+                <i class="bi bi-star-fill me-2"></i>
+                <span class="text-dark fw-bold">{{ hotel.rating|default('0.0') }}</span>
+            </div>
+        </div>
+        
+        <!-- Vị trí -->
+        <div class="d-flex align-items-center text-muted mb-3" style="font-size: 0.85rem;">
+            <i class="bi bi-geo-alt me-2"></i>
+            {{ hotel.location }}
+        </div>
+
+        <!-- Tags / Tiện ích -->
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for tag in hotel.tags %}
+            <span class="badge" style="background-color: #f0f7ff; color: #0d6efd; font-weight: 500; padding: 0.4rem 0.75rem; border-radius: 20px;">{{ tag }}</span>
+            {% endfor %}
+        </div>
+
+        <!-- Giá -->
+        <div class="mt-auto pt-2">
+            <span class="text-primary" style="font-size: 1rem;">từ </span>
+            <span class="text-primary fw-bold" style="font-size: 1.4rem;">{{ "{:,.0f}".format(hotel.min_price|default(0)) }} VNĐ</span>
+            <span class="text-muted" style="font-size: 0.85rem;"> /đêm</span>
+        </div>
+    </div>
+</a>
+{% endmacro %}
+
+<!-- 9. Filter Chips đã sửa xong -->
+{% macro render_filter_chips(enum_class, active_value='ALL', param_name='status', include_all=True) %}
+<div class="d-flex align-items-center flex-wrap gap-2 mb-4">
+    {% if include_all %}
+    {% set args_all = request.args.to_dict() %}
+    {% set _ = args_all.update({param_name: 'ALL'}) %}
+    <a href="{{ url_for(request.endpoint, **args_all) }}" 
+       class="btn rounded-pill px-4 py-2 {% if active_value == 'ALL' %}btn-primary shadow-sm fw-bold{% else %}btn-outline-secondary bg-white text-dark border-light-subtle fw-medium{% endif %}">
+        Tất cả
+    </a>
+    {% endif %}
+    
+    {% for status in enum_class %}
+    {% set args_item = request.args.to_dict() %}
+    {% set _ = args_item.update({param_name: status.value}) %}
+    <a href="{{ url_for(request.endpoint, **args_item) }}" 
+       class="btn rounded-pill px-4 py-2 {% if active_value == status.value %}btn-primary shadow-sm fw-bold{% else %}btn-outline-secondary bg-white text-dark border-light-subtle fw-medium{% endif %}">
+        {{ status.label }}
+    </a>
+    {% endfor %}
+</div>
 {% endmacro %}
