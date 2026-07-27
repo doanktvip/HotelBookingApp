@@ -1,9 +1,11 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_socketio import SocketIO
 
 # Khởi tạo các extensions rỗng (Application Factory Pattern)
 db = SQLAlchemy()
 login_manager = LoginManager()
+socketio = SocketIO()
 
 # Cấu hình cơ bản cho login_manager
 login_manager.login_view = 'auth.login'  # type: ignore

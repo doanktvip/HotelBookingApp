@@ -1,6 +1,5 @@
 from app.services import BaseService
 from app.models import Hotel
-from sqlalchemy import text
 
 
 class HotelService(BaseService):

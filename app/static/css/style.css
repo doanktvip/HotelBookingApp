@@ -1,0 +1,56 @@
+/* Các class của modal */
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.modal-backdrop.show {
+    opacity: 1 !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+
+.custom-staynow-modal {
+    border-radius: 1rem !important;
+    border: none !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.custom-staynow-modal .modal-header .btn-close {
+    background-color: #f3f4f6;
+    border-radius: 50%;
+    padding: 0.5rem;
+    opacity: 0.8;
+}
+
+.custom-staynow-modal .modal-header .btn-close:hover {
+    opacity: 1;
+    background-color: #e5e7eb;
+}
+
+/* Các class của Alert (Toast) */
+.auto-hide-alert {
+    width: 350px;
+    max-width: calc(100vw - 2rem);
+}
+
+.auto-hide-alert .alert-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 1.5rem; /* chừa chỗ cho nút close */
+}
+
+/* Hotel Card Custom Styles */
+.custom-hotel-card {
+    border-radius: 14px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+
+.custom-hotel-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1) !important;
+}
