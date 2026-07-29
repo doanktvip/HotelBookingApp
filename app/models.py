@@ -73,7 +73,7 @@ class User(db.Model, UserMixin):
     otps = db.relationship('OTP', backref='owner', lazy=True, cascade='all, delete-orphan')
     hotel = db.relationship('Hotel', backref='receptionists', lazy=True)
 
-hotel_tags = Table('hotel_tags',
+hotel_tags = Table('hotel_tags', db.metadata,
     Column('hotel_id', Integer, ForeignKey('hotels.id'), primary_key=True),
     Column('tag_id', Integer, ForeignKey('tags.id'), primary_key=True)
 )

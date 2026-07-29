@@ -257,6 +257,7 @@ def seed_hotels_and_tags():
     for h_data in HOTELS_DATA:
         hotel_dict = copy.deepcopy(h_data)
         hotel = Hotel(**hotel_dict)
+        db.session.add(hotel)
         
         # Vì bạn đã xóa amenities cứng của từng khách sạn,
         # mình sẽ cho script tự bốc ngẫu nhiên 5-7 tag từ TAGS_DATA gán cho mỗi khách sạn luôn cho tiện.
@@ -266,7 +267,6 @@ def seed_hotels_and_tags():
             tag = get_or_create_tag(t_name)
             hotel.tags.append(tag)
             
-        db.session.add(hotel)
         created_hotels.append(hotel)
         
     db.session.commit()
