@@ -1,0 +1,150 @@
+/* hotel-detail.css */
+
+.hotel-hero-section {
+    position: relative;
+    height: 400px;
+    background-color: #1e3a8a; /* blue-900 */
+    overflow: hidden;
+    margin-top: -1.5rem; /* kéo lên sát navbar vì có padding ở base */
+    margin-left: -1rem;
+    margin-right: -1rem;
+    border-radius: 0 0 1rem 1rem;
+}
+
+@media (min-width: 992px) {
+    .hotel-hero-section {
+        margin-left: -0.75rem;
+        margin-right: -0.75rem;
+    }
+}
+
+.hotel-hero-bg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.6;
+}
+
+.hotel-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0) 100%);
+}
+
+.hotel-hero-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2rem;
+    color: white;
+}
+
+.hotel-hero-tag {
+    font-size: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.hotel-content-wrapper {
+    margin-top: 2rem;
+    padding-bottom: 4rem;
+}
+
+.hotel-box {
+    background-color: #ffffff;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 2rem;
+}
+
+.amenity-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--bs-secondary-bg);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.room-type-card {
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.2s ease;
+    margin-bottom: 1rem;
+}
+
+.room-type-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+@media (min-width: 768px) {
+    .room-type-card {
+        flex-direction: row;
+    }
+}
+
+.room-type-img-wrapper {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    flex-shrink: 0;
+    background-color: #e0f2fe;
+}
+
+@media (min-width: 768px) {
+    .room-type-img-wrapper {
+        width: 250px;
+        height: auto;
+    }
+}
+
+.room-type-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.room-type-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    color: white;
+}
+
+.room-type-badge.available {
+    background-color: #10b981;
+}
+
+.room-type-badge.unavailable {
+    background-color: #ef4444;
+}
+
+.room-type-content {
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.sticky-sidebar {
+    position: sticky;
+    top: 90px;
+}

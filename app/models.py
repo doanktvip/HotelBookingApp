@@ -82,6 +82,7 @@ class Tag(db.Model):
     __tablename__ = 'tags'
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
+    icon = Column(String(50), nullable=True, default="bi-star")
 
 
 class Hotel(db.Model):
@@ -225,6 +226,16 @@ class SystemConfig(db.Model):
     config_key = Column(String(100), unique=True, nullable=False)  # Khóa cấu hình (VD: 'MAX_ROOMS_PER_BOOKING')
     config_value = Column(String(255), nullable=False)  # Giá trị cấu hình (VD: '5')
     description = Column(Text, nullable=True)  # Lời giải thích cho cấu hình này
+    
+    @classmethod
+    def get_value(cls, key, default=None, type_func=str):
+        config = cls.query.filter_by(config_key=key).first()
+        if config:
+            try:
+                return type_func(config.config_value)
+            except ValueError:
+                return default
+        return default
 
 
 class PricePrediction(db.Model):

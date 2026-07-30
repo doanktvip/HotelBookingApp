@@ -38,4 +38,8 @@ def create_app(config_name=None):
         user_service = UserService(db_session=db.session)
         return user_service.get_user_by_id(int(user_id))
 
+    # Đăng ký các hàm chạy ngầm (hooks)
+    from app.hooks import register_hooks
+    register_hooks(app)
+
     return app

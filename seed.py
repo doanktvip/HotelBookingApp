@@ -8,27 +8,27 @@ from app.models import (
     Booking, BookingDetail, Payment, BookingStatus, PaymentMethod, PaymentStatus,
     SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory
 )
-from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
+import hashlib
 
 TAGS_DATA = [
-    'Wifi',
-    'Bãi biển riêng',
-    'Hồ bơi',
-    'Spa',
-    'Gym',
-    'Buffet sáng',
-    'Quán Bar',
-    'Lò sưởi',
-    'Buffet tối',
-    'View núi',
-    'View biển',
-    'Đưa đón sân bay',
-    'Bãi đậu xe miễn phí',
-    'Lễ tân 24/7',
-    'Cho phép mang thú cưng',
-    'Sân chơi trẻ em',
-    'Khu vực hút thuốc'
+    {'name': 'Wifi', 'icon': 'bi-wifi'},
+    {'name': 'Bãi biển riêng', 'icon': 'bi-umbrella'},
+    {'name': 'Hồ bơi', 'icon': 'bi-water'},
+    {'name': 'Spa', 'icon': 'bi-flower1'},
+    {'name': 'Gym', 'icon': 'bi-bicycle'},
+    {'name': 'Buffet sáng', 'icon': 'bi-cup-hot'},
+    {'name': 'Quán Bar', 'icon': 'bi-cup-straw'},
+    {'name': 'Lò sưởi', 'icon': 'bi-fire'},
+    {'name': 'Buffet tối', 'icon': 'bi-egg-fried'},
+    {'name': 'View núi', 'icon': 'bi-image'},
+    {'name': 'View biển', 'icon': 'bi-tsunami'},
+    {'name': 'Đưa đón sân bay', 'icon': 'bi-airplane'},
+    {'name': 'Bãi đậu xe miễn phí', 'icon': 'bi-p-square'},
+    {'name': 'Lễ tân 24/7', 'icon': 'bi-person-badge'},
+    {'name': 'Cho phép mang thú cưng', 'icon': 'bi-suit-heart'},
+    {'name': 'Sân chơi trẻ em', 'icon': 'bi-balloon'},
+    {'name': 'Khu vực hút thuốc', 'icon': 'bi-sign-stop'}
 ]
 HOTELS_DATA = [
     {
@@ -235,36 +235,39 @@ def seed_users():
         user = User(
             username=u_data["username"],
             email=u_data["email"],
-            password=generate_password_hash(u_data["password"]),
+            password=str(hashlib.md5(u_data["password"].strip().encode('utf-8')).hexdigest()),
             role=u_data["role"],
             is_verified=u_data["is_verified"],
         )
         db.session.add(user)
     db.session.commit()
 
-def get_or_create_tag(tag_name):
-    tag = db.session.query(Tag).filter_by(name=tag_name).first()
+def get_or_create_tag(tag_data):
+    tag = db.session.query(Tag).filter_by(name=tag_data['name']).first()
     if not tag:
-        tag = Tag(name=tag_name)
+        tag = Tag(name=tag_data['name'], icon=tag_data['icon'])
         db.session.add(tag)
+        db.session.commit()
+    elif not tag.icon: # Cập nhật icon nếu tag đã có sẵn nhưng chưa có icon
+        tag.icon = tag_data['icon']
         db.session.commit()
     return tag
 
 def seed_hotels_and_tags():
     print("Đang tạo Khách sạn và gán Tags...")
     created_hotels = []
-    
+
     for h_data in HOTELS_DATA:
         hotel_dict = copy.deepcopy(h_data)
         hotel = Hotel(**hotel_dict)
         db.session.add(hotel)
-        
+
         # Vì bạn đã xóa amenities cứng của từng khách sạn,
         # mình sẽ cho script tự bốc ngẫu nhiên 5-7 tag từ TAGS_DATA gán cho mỗi khách sạn luôn cho tiện.
         num_tags = random.randint(5, 7)
         selected_tags = random.sample(TAGS_DATA, k=num_tags)
-        for t_name in selected_tags:
-            tag = get_or_create_tag(t_name)
+        for t_data in selected_tags:
+            tag = get_or_create_tag(t_data)
             hotel.tags.append(tag)
             
         created_hotels.append(hotel)
@@ -317,13 +320,41 @@ def seed_rooms(created_hotels):
             created_room_types.append(room_type)
         db.session.commit()
 
-        # Tạo ngẫu nhiên 15 phòng cho các RoomType này
-        for i in range(1, 11):
-            rt = random.choice(created_room_types)
-            floor_num = random.randint(1, 5)
+        # Tạo phòng vật lý: mỗi RoomType có 3-5 phòng
+        # Phải đảm bảo tầng nào (1, 2, 3) cũng có ít nhất 1 phòng trong khách sạn
+        floor_counters = {1: 1, 2: 1, 3: 1}
+        
+        rooms_to_create = []
+        for rt in created_room_types:
+            num_rooms = random.randint(3, 5)
+            rooms_to_create.extend([rt.id] * num_rooms)
+            
+        random.shuffle(rooms_to_create) # Trộn ngẫu nhiên để công bằng
+        
+        # Phân bổ phòng cho 3 tầng sao cho: Tầng 1 >= Tầng 2 >= Tầng 3 >= 1
+        total_rooms = len(rooms_to_create)
+        valid_partitions = []
+        for i in range(1, total_rooms - 1):
+            for j in range(1, total_rooms - i):
+                k = total_rooms - i - j
+                if i >= j >= k >= 1:
+                    valid_partitions.append((i, j, k))
+                    
+        # Bốc ngẫu nhiên 1 cách chia thỏa mãn điều kiện
+        c1, c2, c3 = random.choice(valid_partitions)
+        # Danh sách các tầng tương ứng cho từng phòng
+        floor_assignments = [1]*c1 + [2]*c2 + [3]*c3
+        
+        floor_counters = {1: 1, 2: 1, 3: 1}
+        
+        # Gắn từng phòng vào tầng đã được chia
+        for rt_id, floor_num in zip(rooms_to_create, floor_assignments):
+            room_number = f"{floor_num}{floor_counters[floor_num]:02d}"
+            floor_counters[floor_num] += 1
+            
             room = Room(
-                room_type_id=rt.id,
-                room_number=f"{floor_num}0{i % 10}",
+                room_type_id=rt_id,
+                room_number=room_number,
                 floor=floor_num,
                 is_active=True,
                 notes=None,
@@ -338,7 +369,7 @@ def seed_receptionists(created_hotels):
         receptionist = User(
             username=f"letan{i+1}",
             email=f"letan{i+1}@hotel.com",
-            password=generate_password_hash(PASSWORD),
+            password=str(hashlib.md5(PASSWORD.strip().encode('utf-8')).hexdigest()),
             role=UserRole.RECEPTIONIST,
             is_verified=True,
             hotel_id=hotel.id
@@ -427,7 +458,9 @@ def seed_other_tables(created_hotels):
     configs = [
         SystemConfig(config_key='MAX_ROOMS_PER_BOOKING', config_value='5', description='Số phòng tối đa được đặt trong 1 đơn'),
         SystemConfig(config_key='CANCELLATION_FEE_PERCENTAGE', config_value='10', description='Phần trăm phí phạt nếu hủy phòng sát ngày'),
-        SystemConfig(config_key='MAINTENANCE_MODE', config_value='false', description='Bật/tắt chế độ bảo trì toàn hệ thống')
+        SystemConfig(config_key='MAINTENANCE_MODE', config_value='false', description='Bật/tắt chế độ bảo trì toàn hệ thống'),
+        SystemConfig(config_key='MAXIMUM_PASSWORD_LENGHT', config_value='20', description='Độ dài tối đa của mật khẩu'),
+        SystemConfig(config_key='MINIMUM_PASSWORD_LENGTH', config_value='6', description='Độ dài tối thiếu của mật khẩu')
     ]
     db.session.bulk_save_objects(configs)
     
