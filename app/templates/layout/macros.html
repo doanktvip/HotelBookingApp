@@ -25,14 +25,21 @@
 
 <!-- 2. Room Card đã sửa xong -->
 {% macro render_room_type_card(room_type) %}
-<div class="card border-0 shadow-sm mb-4 custom-room-card" style="border-radius: 16px; border: 1px solid #eaeaea !important; overflow: hidden;">
+{% set available_count = room_type.rooms|selectattr("status.name", "equalto", "AVAILABLE")|list|length %}
+<div class="card border-0 shadow-sm mb-4 custom-room-card" style="border-radius: 1rem; border: 1px solid var(--bs-border-color) !important; overflow: hidden; transition: box-shadow 0.2s ease;">
     <div class="row g-0 h-100">
         <!-- Image Section -->
-        <div class="col-md-4 position-relative" style="min-height: 220px;">
-            <img src="{{ room_type.image_url or url_for('static', filename='image/default_room_type.png') }}" 
+        <div class="col-md-4 position-relative" style="min-height: 220px; background-color: #e0f2fe;">
+            {% set optimized_img_room = room_type.image_url|replace('upload/', 'upload/w_600,c_fill,q_auto,f_auto/') if room_type.image_url else url_for('static', filename='image/default_room_type.png') %}
+            <img src="{{ optimized_img_room }}" 
                  class="position-absolute top-0 start-0 w-100 h-100" 
                  alt="{{ room_type.name }}" 
                  style="object-fit: cover; z-index: 1;">
+            {% if available_count > 0 %}
+                <span class="position-absolute" style="top: 0.75rem; left: 0.75rem; z-index: 2; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 9999px; background-color: #10b981; color: white;">Còn {{ available_count }}/{{ room_type.rooms|length }} trống</span>
+            {% else %}
+                <span class="position-absolute" style="top: 0.75rem; left: 0.75rem; z-index: 2; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 9999px; background-color: #ef4444; color: white;">0/{{ room_type.rooms|length }} trống</span>
+            {% endif %}
         </div>
         
         <!-- Content Section -->
@@ -40,36 +47,31 @@
             <div class="card-body d-flex flex-column h-100 p-4">
                 <!-- Header: Title & Price -->
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h5 class="card-title fw-bold text-dark mb-0" style="font-size: 1.3rem;">{{ room_type.name }}</h5>
+                    <h5 class="fw-bold mb-0 text-dark">{{ room_type.name }}</h5>
                     <div class="text-end ms-3">
-                        <span class="text-primary fw-bold" style="font-size: 1.5rem; color: #1d4ed8 !important;">{{ "{:,.0f}".format(room_type.base_price) }} VNĐ</span>
-                        <span class="text-muted" style="font-size: 0.85rem;">/đêm</span>
+                        <span class="fs-5 fw-bold text-primary">{{ "{:,.0f}".format(room_type.base_price) }}đ</span>
+                        <span class="text-muted" style="font-size: 0.8rem;">/ đêm</span>
                     </div>
                 </div>
                 
                 <!-- Description -->
-                <p class="card-text text-muted mb-4" style="font-size: 0.95rem;">
-                    {{ room_type.description }}
+                <p class="card-text text-muted mb-3 flex-grow-1" style="font-size: 0.85rem;">
+                    {{ room_type.description or 'Phòng được trang bị đầy đủ tiện nghi tiêu chuẩn.' }}
                 </p>
                 
-                <!-- Amenities / Info -->
-                <div class="d-flex align-items-center text-muted gap-4 mb-3" style="font-size: 0.9rem;">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-people me-2"></i>
-                        {{ room_type.max_occupancy }} khách
+                <!-- Footer: Amenities & Action -->
+                <div class="d-flex align-items-center justify-content-between mt-auto">
+                    <div class="d-flex gap-3 text-muted" style="font-size: 0.85rem;">
+                        <span><i class="bi bi-person me-1"></i>Tối đa: {{ room_type.max_occupancy }} khách</span>
+                        <span><i class="bi bi-hdd-stack me-1"></i>{{ room_type.bed_count }} {{ room_type.bed_type or 'giường' }}</span>
                     </div>
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-inbox me-2"></i>
-                        {{ room_type.bed_count }} {{ room_type.bed_type }}
-                    </div>
-                </div>
-                
-                <!-- Footer: Action Button -->
-                <div class="mt-auto d-flex justify-content-end">
-                    <a href="/room-type/{{ room_type.id }}" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm" style="font-weight: 600; background-color: #2563eb; border: none;">
-                        <i class="bi bi-plus-circle me-2"></i>
-                        Đặt phòng này
-                    </a>
+                    {% if available_count > 0 %}
+                        {% call render_a_button(href="/room-type/" ~ room_type.id, class="btn-primary rounded-pill px-4 fw-medium shadow-sm", style="border: none;") %}
+                            <i class="bi bi-plus"></i>Đặt phòng ngay
+                        {% endcall %}
+                    {% else %}
+                        <button class="btn btn-secondary rounded-pill px-4 fw-medium" disabled>Đã hết</button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -165,7 +167,8 @@
 <a href="{{ detail_url }}" class="card h-100 border-0 custom-hotel-card text-decoration-none text-dark">
     <!-- Hình ảnh -->
     <div style="position: relative; padding-top: 65%; overflow: hidden;">
-        <img src="{{ hotel.image_url or url_for('static', filename='image/default_hotel.png') }}" class="position-absolute top-0 start-0 w-100 h-100"
+        {% set optimized_img = hotel.image_url|replace('upload/', 'upload/w_600,c_fill,q_auto,f_auto/') if hotel.image_url else url_for('static', filename='image/default_hotel.png') %}
+        <img src="{{ optimized_img }}" class="position-absolute top-0 start-0 w-100 h-100"
              alt="{{ hotel.name }}" style="object-fit: cover;">
     </div>
     
@@ -186,10 +189,10 @@
             {{ hotel.location }}
         </div>
 
-        <!-- Tags / Tiện ích -->
-        <div class="d-flex flex-wrap gap-2 mb-3">
+        <!-- Tags / Tiện ích (Sẽ được xử lý bằng JS để hiện đúng 2 dòng) -->
+        <div class="d-flex flex-wrap gap-2 mb-3 hotel-tags-container">
             {% for tag in hotel.tags %}
-            <span class="badge" style="background-color: #f0f7ff; color: #0d6efd; font-weight: 500; padding: 0.4rem 0.75rem; border-radius: 20px;">{{ tag }}</span>
+            <span class="badge tag-badge-original" style="background-color: #f0f7ff; color: #0d6efd; font-weight: 500; padding: 0.4rem 0.75rem; border-radius: 20px;">{{ tag.name }}</span>
             {% endfor %}
         </div>
 
@@ -223,5 +226,101 @@
         {{ status.label }}
     </a>
     {% endfor %}
+</div>
+{% endmacro %}
+
+<!-- 10. Reusable Button Component (Sử dụng caller() và kwargs) -->
+{% macro render_a_button(href) %}
+    {% set custom_classes = kwargs.pop('class', 'btn-primary text-white shadow-sm') %}
+    <a href="{{ href }}" class="btn rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2 transition-all {{ custom_classes }}" 
+       {% for key, value in kwargs.items() %} {{ key }}="{{ value }}" {% endfor %}>
+        {{ caller() }}
+    </a>
+{% endmacro %}
+
+{# 10b. Nút Button dạng Form Submit #}
+{% macro render_btn_submit(text, style='primary', type='submit', icon_class='') %}
+{% set custom_classes = kwargs.pop('class', 'w-100 mb-4') %}
+<button type="{{ type }}" class="btn btn-{{ style }} rounded-pill fw-semibold d-flex justify-content-center align-items-center gap-2 py-2 {{ custom_classes }}" style="font-size: 15px;" {% for key, val in kwargs.items() %}{{ key }}="{{ val }}"{% endfor %}>
+    {% if icon_class %}<i class="{{ icon_class }}"></i>{% endif %}{{ text }}
+    {% if caller %}{{ caller() }}{% endif %}
+</button>
+{% endmacro %}
+
+<!-- 11. Form Input Components -->
+
+{# Input Floating Label #}
+{% macro render_input_floating(name, label, type='text', placeholder='', icon_class='') %}
+{% set input_id = kwargs.pop('id', name) %}
+<div class="form-floating mb-4 position-relative shadow-sm rounded-3">
+    {% if icon_class %}
+        <!-- Icon bên trái -->
+        <i class="{{ icon_class }} position-absolute text-secondary" style="top: 50%; left: 1.1rem; transform: translateY(-50%); z-index: 4; font-size: 1.1rem;"></i>
+    {% endif %}
+    
+    <input type="{{ type }}" name="{{ name }}" id="{{ input_id }}" class="form-control rounded-3 border-light-subtle bg-white" placeholder="{{ placeholder or label }}" style="{% if icon_class %}padding-left: 3rem;{% endif %} {% if caller %}padding-right: 3rem;{% endif %}" {% for key, val in kwargs.items() %}{{ key }}="{{ val }}"{% endfor %}>
+    
+    <label for="{{ input_id }}" class="text-secondary fw-medium" style="{% if icon_class %}padding-left: 3rem;{% endif %} font-size: 14.5px;">{{ label }}</label>
+    
+    {% if caller %}
+        <!-- Phần tử bổ sung bên phải (như nút show/hide password) -->
+        <div class="position-absolute end-0 pe-2" style="top: 50%; transform: translateY(-50%); z-index: 5;">
+            {{ caller() }}
+        </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<!-- 12. Nav Item Component cho Menu (Tự động nhận diện Active) -->
+{% macro render_nav_item(href, exact=False) %}
+    {% set content = caller() if caller else "" %}
+    
+    {% set is_active = (request.path == href) if exact else (request.path.startswith(href) and href != '/') %}
+    {% if href == '/' and not exact %}
+        {% set is_active = (request.path == '/') %}
+    {% endif %}
+    
+    {% set active_class = "bg-primary bg-opacity-10 text-primary fw-medium" %}
+    {% set inactive_class = "text-secondary hover-bg-light" %}
+    {% set computed_class = active_class if is_active else inactive_class %}
+    
+    {% call render_a_button(href=href, class=computed_class, **kwargs) %}
+        {{ content }}
+    {% endcall %}
+{% endmacro %}
+
+<!-- 13. Segmented Control / Toggle Switch (Hỗ trợ chuyển Tab không tải lại trang) -->
+{% macro render_segmented_control(items) %}
+<div class="d-inline-flex align-items-center p-1 custom-segmented-control" role="tablist" style="border-radius: 12px; background-color: #f8f9fa;">
+    {% for item in items %}
+        <button class="d-flex align-items-center text-decoration-none px-4 py-2 custom-tab-btn {{ 'active' if item.active else '' }}" 
+                data-bs-toggle="pill" 
+                data-bs-target="#{{ item.target }}" 
+                type="button" 
+                role="tab" 
+                aria-selected="{{ 'true' if item.active else 'false' }}"
+                style="border-radius: 10px; transition: all 0.2s ease; border: none; background: transparent;">
+            {% if item.icon %}<i class="{{ item.icon }} me-2"></i>{% endif %}
+            <span>{{ item.label }}</span>
+        </button>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+<!-- 14. Page Wrapper / Body Container Component -->
+{% macro render_page_body(title, description=None) %}
+<div class="custom-page-container container my-5">
+    <!-- Phần 1: Head của Body (Tiêu đề và Công cụ) -->
+    <div class="page-head mb-4 pb-3 d-flex flex-column gap-2">
+        <h2 class="fw-bold text-dark mb-0" style="font-size: 1.75rem;">{{ title }}</h2>
+        {% if description %}
+        <p class="text-muted mb-0" style="font-size: 1rem;">{{ description }}</p>
+        {% endif %}
+    </div>
+    
+    <!-- Phần 2: Body của Body (Nội dung bên trong) -->
+    <div class="page-content">
+        {{ caller() }}
+    </div>
 </div>
 {% endmacro %}

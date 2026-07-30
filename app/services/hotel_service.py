@@ -1,5 +1,6 @@
 from app.services import BaseService
 from app.models import Hotel
+from sqlalchemy.orm import selectinload
 
 
 class HotelService(BaseService):
@@ -29,5 +30,14 @@ class HotelService(BaseService):
         if amenities:
             filters.append(Hotel.amenities.ilike(f'%{amenities}%'))
 
-        # Truyền danh sách điều kiện (*filters) vào hàm cha siêu tái sử dụng
-        return self.get_all_paginated(Hotel, *filters, per_page=per_page)
+        # Tối ưu hoá truy vấn (Eager Loading) để giải quyết lỗi N+1 Queries gây lag
+        query = self.db.query(Hotel).options(
+            selectinload(Hotel.tags),
+            selectinload(Hotel.room_types)
+        )
+        if filters:
+            query = query.filter(*filters)
+            
+        if per_page:
+            return self.get_paginated(query, default_per_page=per_page)
+        return self.get_paginated(query)

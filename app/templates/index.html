@@ -44,34 +44,6 @@
 </div>
 
 <!-- ==========================================
-     3. TEST HIỂN THỊ DANH SÁCH CÓ PHÂN TRANG
-     ========================================== -->
-<div class="mb-5 p-4 border rounded bg-light">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="text-primary mb-0">3. Demo Danh Sách Phòng & Phân Trang</h4>
-        <span class="badge bg-secondary">Tổng cộng: {{ room_type_pagination.total }} phòng</span>
-    </div>
-
-    <!-- Render lưới danh sách phòng (6 phòng / trang) -->
-    <div class="row g-4">
-        {% for room_type in room_type_pagination.items %}
-        <div class="col-12 col-lg-10 mx-auto">
-            {{ ui.render_room_type_card(room_type) }}
-        </div>
-        {% else %}
-        <div class="col-12 text-center text-muted py-5">
-            Không tìm thấy phòng nào ở trang này.
-        </div>
-        {% endfor %}
-    </div>
-
-    <!-- Render bộ phân trang ở dưới cùng -->
-    <div class="mt-5">
-        {{ ui.render_pagination(room_type_pagination, 'main.index') }}
-    </div>
-</div>
-
-<!-- ==========================================
      4 & 5. TEST MODAL + FORM INPUT
      ========================================== -->
 <div class="mb-5 p-4 border rounded bg-light">
@@ -120,7 +92,7 @@
     <h4 class="mb-3 text-primary">8. Hotel Card Component</h4>
     <p class="text-muted mb-4">Giao diện thẻ khách sạn mô phỏng theo thiết kế mới.</p>
     <div class="row g-4">
-        {% for hotel in hotels %}
+        {% for hotel in hotels_pagination.items %}
         <div class="col-md-6 col-lg-3">
             {{ ui.render_hotel_card(hotel, detail_url=url_for('hotel.hotel_detail', hotel_id=hotel.id)) }}
         </div>
@@ -157,4 +129,5 @@
 <!-- Nhúng thư viện SocketIO và file cấu hình dùng chung (Chỉ nhúng ở trang nào cần Real-time) -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="{{ url_for('static', filename='js/socket_client.js') }}"></script>
+<script src="{{ url_for('static', filename='js/hotel-card.js') }}"></script>
 {% endblock %}
