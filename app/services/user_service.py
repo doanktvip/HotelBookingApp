@@ -17,7 +17,7 @@ class UserService(BaseService):
         if not username or not password:
             raise ValueError("Vui lòng nhập đầy đủ dữ liệu!")
         
-        # if (len(username) < g.min_len or len(username) > g.max_len) or (len(password) < g.min_len or len(password) > g.max_len) or not username.isascii() or not password.isascii() or " " in password or " " in username:
+        # if (len(username) < g.minimum_password_length or len(username) > g.maximum_password_lenght) or (len(password) < g.minimum_password_length or len(password) > g.maximum_password_lenght) or not username.isascii() or not password.isascii() or " " in password or " " in username:
         #     raise ValueError("Tên đăng nhập hoặc mật khẩu không chính xác")
         
         user = self.get_first_user_by(username=username)
