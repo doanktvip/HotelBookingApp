@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, cache
 from flask_login import UserMixin
 from app.utils import get_vn_time
 from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, Float, Enum, DateTime, Date, Table, DECIMAL
@@ -227,12 +227,36 @@ class SystemConfig(db.Model):
     config_value = Column(String(255), nullable=False)  # Giá trị cấu hình (VD: '5')
     description = Column(Text, nullable=True)  # Lời giải thích cho cấu hình này
     
-    @classmethod
-    def get_value(cls, key, default=None, type_func=str):
-        config = cls.query.filter_by(config_key=key).first()
-        if config:
+    @staticmethod
+    @cache.memoize()
+    def get_all_raw_configs():
+        configs = SystemConfig.query.all()
+        return {c.config_key: c.config_value for c in configs}
+
+    @staticmethod
+    def _auto_cast(val):
+        from decimal import Decimal
+        try:
+            return int(val)
+        except ValueError:
             try:
-                return type_func(config.config_value)
+                return Decimal(val)
+            except Exception:
+                if val.lower() == 'true': return True
+                if val.lower() == 'false': return False
+                return val
+
+    @classmethod
+    def get_value(cls, key, default=None, type_func=None):
+        # Lấy từ Cache (không chạm DB)
+        all_configs = cls.get_all_raw_configs()
+        val = all_configs.get(key)
+        
+        if val is not None:
+            if type_func is None:
+                return cls._auto_cast(val)
+            try:
+                return type_func(val)
             except ValueError:
                 return default
         return default

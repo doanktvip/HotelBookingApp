@@ -14,8 +14,7 @@ class BaseService:
 
     def get_paginated(self, query, default_per_page=12):
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', default_per_page, type=int)
-        return query.paginate(page=page, per_page=per_page, error_out=False)
+        return query.paginate(page=page, per_page=default_per_page, error_out=False)
 
     def get_all_paginated(self, model_class, *filters, per_page=None):
         query = self.db.query(model_class)
@@ -32,5 +31,6 @@ class BaseService:
 from .room_type_service import RoomTypeService
 from .user_service import UserService
 from .hotel_service import HotelService
+from .system_config_service import SystemConfigService
 
-__all__ = ['BaseService', 'RoomTypeService', 'UserService', 'HotelService']
+__all__ = ['BaseService', 'RoomTypeService', 'UserService', 'HotelService', 'SystemConfigService']

@@ -460,7 +460,8 @@ def seed_other_tables(created_hotels):
         SystemConfig(config_key='CANCELLATION_FEE_PERCENTAGE', config_value='10', description='Phần trăm phí phạt nếu hủy phòng sát ngày'),
         SystemConfig(config_key='MAINTENANCE_MODE', config_value='false', description='Bật/tắt chế độ bảo trì toàn hệ thống'),
         SystemConfig(config_key='MAXIMUM_PASSWORD_LENGHT', config_value='20', description='Độ dài tối đa của mật khẩu'),
-        SystemConfig(config_key='MINIMUM_PASSWORD_LENGTH', config_value='6', description='Độ dài tối thiếu của mật khẩu')
+        SystemConfig(config_key='MINIMUM_PASSWORD_LENGTH', config_value='6', description='Độ dài tối thiếu của mật khẩu'),
+        SystemConfig(config_key='DEFAULT_PER_PAGE', config_value='12', description='Số lượng mục hiển thị mặc định trên mỗi trang')
     ]
     db.session.bulk_save_objects(configs)
     

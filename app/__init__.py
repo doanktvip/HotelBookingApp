@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from config import config_by_name
-from app.extensions import db, login_manager, socketio
+from app.extensions import db, login_manager, socketio, cache
 
 
 def create_app(config_name=None):
@@ -18,6 +18,7 @@ def create_app(config_name=None):
     # Gắn kết các extensions với ứng dụng
     db.init_app(app)
     login_manager.init_app(app)
+    cache.init_app(app, config={'CACHE_TYPE': 'SimpleCache'})
     # Danh sách tên miền (Origins) được phép vượt tường lửa CORS
     socketio.init_app(app, cors_allowed_origins=app.config['CORS_ALLOWED_ORIGINS'])
 
