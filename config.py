@@ -21,6 +21,21 @@ class Config:
 
     SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{_db_user}:{_db_password}@{_db_host}:{_db_port}/{_db_name}"
 
+    # Flask-Mail Config
+    MAIL_SERVER = os.environ.get('MAIL_SERVER')
+    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS') == 'True'
+    MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL') == 'True'
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', MAIL_USERNAME)
+
+    # MoMo API Configs
+    MOMO_PARTNER_CODE = os.environ.get('MOMO_PARTNER_CODE')
+    MOMO_ACCESS_KEY = os.environ.get('MOMO_ACCESS_KEY')
+    MOMO_SECRET_KEY = os.environ.get('MOMO_SECRET_KEY')
+    MOMO_ENDPOINT = os.environ.get('MOMO_ENDPOINT')
+    MOMO_REFUND_ENDPOINT = os.environ.get('MOMO_REFUND_ENDPOINT')
 
 class DevelopmentConfig(Config):
     DEBUG = True

@@ -24,8 +24,10 @@
 {% endmacro %}
 
 <!-- 2. Room Card đã sửa xong -->
-{% macro render_room_type_card(room_type) %}
-{% set available_count = room_type.rooms|selectattr("status.name", "equalto", "AVAILABLE")|list|length %}
+{% macro render_room_type_card(room_type, available_count=None, check_in_date='', check_out_date='') %}
+{% if available_count is none %}
+    {% set available_count = room_type.rooms|selectattr("status.name", "equalto", "AVAILABLE")|list|length %}
+{% endif %}
 <div class="card border-0 shadow-sm mb-4 custom-room-card" style="border-radius: 1rem; border: 1px solid var(--bs-border-color) !important; overflow: hidden; transition: box-shadow 0.2s ease;">
     <div class="row g-0 h-100">
         <!-- Image Section -->
@@ -36,9 +38,9 @@
                  alt="{{ room_type.name }}" 
                  style="object-fit: cover; z-index: 1;">
             {% if available_count > 0 %}
-                <span class="position-absolute" style="top: 0.75rem; left: 0.75rem; z-index: 2; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 9999px; background-color: #10b981; color: white;">Còn {{ available_count }}/{{ room_type.rooms|length }} trống</span>
+                <span id="room-avail-badge-{{ room_type.id }}" class="position-absolute" style="top: 0.75rem; left: 0.75rem; z-index: 2; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 9999px; background-color: #10b981; color: white;">Còn {{ available_count }} trống</span>
             {% else %}
-                <span class="position-absolute" style="top: 0.75rem; left: 0.75rem; z-index: 2; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 9999px; background-color: #ef4444; color: white;">0/{{ room_type.rooms|length }} trống</span>
+                <span id="room-avail-badge-{{ room_type.id }}" class="position-absolute" style="top: 0.75rem; left: 0.75rem; z-index: 2; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 9999px; background-color: #ef4444; color: white;">Hết phòng</span>
             {% endif %}
         </div>
         
@@ -66,11 +68,12 @@
                         <span><i class="bi bi-hdd-stack me-1"></i>{{ room_type.bed_count }} {{ room_type.bed_type or 'giường' }}</span>
                     </div>
                     {% if available_count > 0 %}
-                        {% call render_a_button(href="/room-type/" ~ room_type.id, class="btn-primary rounded-pill px-4 fw-medium shadow-sm", style="border: none;") %}
+                        {% set book_url = url_for('booking.book_room_type', room_type_id=room_type.id, check_in=check_in_date, check_out=check_out_date) %}
+                        {% call render_a_button(href=book_url, id="room-book-btn-" ~ room_type.id, class="btn-primary rounded-pill px-4 fw-medium shadow-sm", style="border: none;") %}
                             <i class="bi bi-plus"></i>Đặt phòng ngay
                         {% endcall %}
                     {% else %}
-                        <button class="btn btn-secondary rounded-pill px-4 fw-medium" disabled>Đã hết</button>
+                        <button id="room-book-btn-{{ room_type.id }}" class="btn btn-secondary rounded-pill px-4 fw-medium" disabled>Đã hết</button>
                     {% endif %}
                 </div>
             </div>
@@ -91,18 +94,16 @@
 {% endmacro %}
 
 
-<!-- 4. Trạng thái Booking / Badge chưa sửa xong-->
+<!-- 4. Trạng thái Booking / Badge đã sửa xong-->
 {% macro render_status_badge(status) %}
-{% if status == 'PENDING' %}
-    <span class="badge bg-warning text-dark">Chờ duyệt</span>
-{% elif status == 'CONFIRMED' %}
-    <span class="badge bg-success">Đã xác nhận</span>
-{% elif status == 'CANCELLED' %}
-    <span class="badge bg-danger">Đã hủy</span>
+{% if status == 'CONFIRMED' %}
+    <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-bold border border-primary-subtle">Đã đặt</span>
 {% elif status == 'COMPLETED' %}
-    <span class="badge bg-info">Đã hoàn thành</span>
+    <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 fw-bold border border-success-subtle">Hoàn thành</span>
+{% elif status == 'CANCELLED' %}
+    <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-bold border border-danger-subtle">Đã hủy</span>
 {% else %}
-    <span class="badge bg-secondary">{{ status }}</span>
+    <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 fw-bold border border-secondary-subtle">{{ status }}</span>
 {% endif %}
 {% endmacro %}
 
@@ -126,7 +127,7 @@
 {% endmacro %}
 
 
-<!-- 7. Pagination Component chưa sửa xong -->
+<!-- 7. Pagination Component -->
 {% macro render_pagination(pagination, endpoint) %}
 {% if pagination and pagination.pages > 1 %}
 <nav aria-label="Điều hướng phân trang">
@@ -134,7 +135,7 @@
         <!-- Nút Trở Về Trước -->
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for(endpoint, page=pagination.prev_num) if pagination.has_prev else '#' }}">
+               href="{{ url_for(endpoint, page=pagination.prev_num, **kwargs) if pagination.has_prev else '#' }}">
                 &laquo; Trước
             </a>
         </li>
@@ -143,7 +144,7 @@
         {% for page in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
         {% if page %}
         <li class="page-item {% if page == pagination.page %}active{% endif %}">
-            <a class="page-link" href="{{ url_for(endpoint, page=page) }}">{{ page }}</a>
+            <a class="page-link" href="{{ url_for(endpoint, page=page, **kwargs) }}">{{ page }}</a>
         </li>
         {% else %}
         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -153,7 +154,7 @@
         <!-- Nút Tới Trang Sau -->
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
             <a class="page-link"
-               href="{{ url_for(endpoint, page=pagination.next_num) if pagination.has_next else '#' }}">
+               href="{{ url_for(endpoint, page=pagination.next_num, **kwargs) if pagination.has_next else '#' }}">
                 Sau &raquo;
             </a>
         </li>
@@ -229,7 +230,7 @@
 </div>
 {% endmacro %}
 
-<!-- 10. Reusable Button Component (Sử dụng caller() và kwargs) -->
+<!-- 10. Reusable Button Component đã sửa xong -->
 {% macro render_a_button(href) %}
     {% set custom_classes = kwargs.pop('class', 'btn-primary text-white shadow-sm') %}
     <a href="{{ href }}" class="btn rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2 transition-all {{ custom_classes }}" 
@@ -239,15 +240,14 @@
 {% endmacro %}
 
 {# 10b. Nút Button dạng Form Submit #}
-{% macro render_btn_submit(text, style='primary', type='submit', icon_class='') %}
-{% set custom_classes = kwargs.pop('class', 'w-100 mb-4') %}
-<button type="{{ type }}" class="btn btn-{{ style }} rounded-pill fw-semibold d-flex justify-content-center align-items-center gap-2 py-2 {{ custom_classes }}" style="font-size: 15px;" {% for key, val in kwargs.items() %}{{ key }}="{{ val }}"{% endfor %}>
+{% macro render_btn_submit(text, style='primary', type='submit', icon_class='', btn_class='w-100 mb-4') %}
+<button type="{{ type }}" class="btn btn-{{ style }} rounded-pill fw-semibold d-flex justify-content-center align-items-center gap-2 py-2 {{ btn_class }}" style="font-size: 15px;" {% for key, val in kwargs.items() %}{{ key }}="{{ val }}"{% endfor %}>
     {% if icon_class %}<i class="{{ icon_class }}"></i>{% endif %}{{ text }}
     {% if caller %}{{ caller() }}{% endif %}
 </button>
 {% endmacro %}
 
-<!-- 11. Form Input Components -->
+<!-- 11. Form Input Components đã sửa xong -->
 
 {# Input Floating Label #}
 {% macro render_input_floating(name, label, type='text', placeholder='', icon_class='') %}
@@ -258,7 +258,7 @@
         <i class="{{ icon_class }} position-absolute text-secondary" style="top: 50%; left: 1.1rem; transform: translateY(-50%); z-index: 4; font-size: 1.1rem;"></i>
     {% endif %}
     
-    <input type="{{ type }}" name="{{ name }}" id="{{ input_id }}" class="form-control rounded-3 border-light-subtle bg-white" placeholder="{{ placeholder or label }}" style="{% if icon_class %}padding-left: 3rem;{% endif %} {% if caller %}padding-right: 3rem;{% endif %}" {% for key, val in kwargs.items() %}{{ key }}="{{ val }}"{% endfor %}>
+    <input type="{{ type }}" name="{{ name }}" id="{{ input_id }}" class="form-control rounded-3 border-light-subtle bg-white" placeholder=" " style="{% if icon_class %}padding-left: 3rem;{% endif %} {% if caller %}padding-right: 3rem;{% endif %}" {% for key, val in kwargs.items() %}{{ key }}="{{ val }}"{% endfor %}>
     
     <label for="{{ input_id }}" class="text-secondary fw-medium" style="{% if icon_class %}padding-left: 3rem;{% endif %} font-size: 14.5px;">{{ label }}</label>
     
@@ -271,7 +271,7 @@
 </div>
 {% endmacro %}
 
-<!-- 12. Nav Item Component cho Menu (Tự động nhận diện Active) -->
+<!-- 12. Nav Item Component cho Menu đã sửa xong -->
 {% macro render_nav_item(href, exact=False) %}
     {% set content = caller() if caller else "" %}
     
@@ -289,7 +289,7 @@
     {% endcall %}
 {% endmacro %}
 
-<!-- 13. Segmented Control / Toggle Switch (Hỗ trợ chuyển Tab không tải lại trang) -->
+<!-- 13. Segmented Control / Toggle Switch đã sửa xong-->
 {% macro render_segmented_control(items) %}
 <div class="d-inline-flex align-items-center p-1 custom-segmented-control" role="tablist" style="border-radius: 12px; background-color: #f8f9fa;">
     {% for item in items %}
@@ -307,7 +307,7 @@
 </div>
 {% endmacro %}
 
-<!-- 14. Page Wrapper / Body Container Component -->
+<!-- 14. Page Wrapper / Body Container Component đã sửa xong -->
 {% macro render_page_body(title, description=None) %}
 <div class="custom-page-container container my-5">
     <!-- Phần 1: Head của Body (Tiêu đề và Công cụ) -->
@@ -323,4 +323,39 @@
         {{ caller() }}
     </div>
 </div>
+{% endmacro %}
+
+<!-- 15. Nút mở Modal Component -->
+{% macro render_modal_button(target_modal_id, text, icon='', btn_class='btn btn-primary') %}
+<button type="button" class="{{ btn_class }}" data-bs-toggle="modal" data-bs-target="#{{ target_modal_id }}"
+    {% for key, value in kwargs.items() %} {{ key }}="{{ value }}"{% endfor %}>
+    {% if icon %}<i class="bi {{ icon }} me-2"></i>{% endif %}{{ text }}
+</button>
+{% endmacro %}
+
+<!-- 16. Form Date Input Component -->
+{% macro render_date_input(label, id_name, value='') %}
+<label class="form-label text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">{{ label }}</label>
+<input type="date" class="form-control form-control-lg bg-light border-0 rounded-3 text-secondary" id="{{ id_name }}" name="{{ id_name }}" value="{{ value }}" required>
+{% endmacro %}
+
+<!-- 17. Standard Form Input Component -->
+{% macro render_form_input(label, name, value='', type='text', icon='', readonly=false, required=false, placeholder='', help_text='') %}
+{% set bg_class = 'bg-light' if readonly else 'bg-white' %}
+{% set border_class = 'border-0' if readonly else 'border' %}
+<label class="form-label text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">{{ label }}</label>
+<div class="position-relative d-flex align-items-center {{ bg_class }} {{ border_class }} rounded-3 overflow-hidden">
+    {% if icon %}
+    <i class="bi {{ icon }} position-absolute text-secondary" style="left: 1.25rem; z-index: 5;"></i>
+    {% endif %}
+    <input type="{{ type }}" class="form-control form-control-lg bg-transparent border-0 text-dark fw-medium {{ 'ps-5' if icon else '' }}" id="{{ name }}" name="{{ name }}" value="{{ value }}" placeholder="{{ placeholder }}" {{ 'readonly' if readonly else '' }} {{ 'required' if required else '' }} style="box-shadow: none;">
+    {% if caller %}
+        <div class="pe-2 position-relative z-3 {{ bg_class }}">
+            {{ caller() }}
+        </div>
+    {% endif %}
+</div>
+{% if help_text %}
+<div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> {{ help_text }}</div>
+{% endif %}
 {% endmacro %}

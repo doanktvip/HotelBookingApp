@@ -15,10 +15,13 @@ def create_app(config_name=None):
     # Nạp cấu hình từ config.py
     app.config.from_object(config_by_name.get(config_name, config_by_name['default']))
 
+    from app.extensions import db, login_manager, socketio, cache, mail
+
     # Gắn kết các extensions với ứng dụng
     db.init_app(app)
     login_manager.init_app(app)
     cache.init_app(app, config={'CACHE_TYPE': 'SimpleCache'})
+    mail.init_app(app)
     # Danh sách tên miền (Origins) được phép vượt tường lửa CORS
     socketio.init_app(app, cors_allowed_origins=app.config['CORS_ALLOWED_ORIGINS'])
 

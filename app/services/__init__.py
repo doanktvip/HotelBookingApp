@@ -32,5 +32,6 @@ from .room_type_service import RoomTypeService
 from .user_service import UserService
 from .hotel_service import HotelService
 from .system_config_service import SystemConfigService
+from .booking_service import BookingService
 
-__all__ = ['BaseService', 'RoomTypeService', 'UserService', 'HotelService', 'SystemConfigService']
+__all__ = ['BaseService', 'RoomTypeService', 'UserService', 'HotelService', 'SystemConfigService', 'BookingService']

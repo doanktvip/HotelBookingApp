@@ -6,7 +6,7 @@ from app.extensions import db
 from app.models import (
     Hotel, RoomType, Room, User, UserRole, RoomStatus, Tag,
     Booking, BookingDetail, Payment, BookingStatus, PaymentMethod, PaymentStatus,
-    SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory
+    SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory, RefundLog
 )
 from datetime import datetime, timedelta
 import hashlib
@@ -226,7 +226,7 @@ for i in range(1, 31):
         "email": f"khachhang{i}@hotel.com",
         "password": PASSWORD,
         "role": UserRole.CUSTOMER,
-        "is_verified": True,
+        "is_verified": False if i == 1 else True,  # Khách hàng đầu tiên (khachhang1) sẽ có is_verified = False
     })
 
 def seed_users():
@@ -382,72 +382,90 @@ def seed_bookings_and_payments(created_hotels):
     customers = User.query.filter_by(role=UserRole.CUSTOMER).all()
     
     for customer in customers:
-        hotel = random.choice(created_hotels)
-        # Lấy phòng trống
-        available_rooms = Room.query.filter_by(status=RoomStatus.AVAILABLE).join(RoomType).filter(RoomType.hotel_id == hotel.id).all()
-        if not available_rooms:
-            continue
+        num_bookings_to_create = 15 if customer.username == 'khachhang1' else 1
+        
+        for _ in range(num_bookings_to_create):
+            hotel = random.choice(created_hotels)
+            # Lấy một loại phòng ngẫu nhiên của khách sạn này
+            available_room_types = RoomType.query.filter_by(hotel_id=hotel.id).all()
+            if not available_room_types:
+                continue
+            selected_room_type = random.choice(available_room_types)
             
-        num_rooms = random.randint(1, min(2, len(available_rooms)))
-        selected_rooms = random.sample(available_rooms, num_rooms)
-        
-        b_status = random.choice([BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CANCELLED, BookingStatus.COMPLETED])
-        
-        if b_status == BookingStatus.COMPLETED:
-            check_in_date = datetime.now().date() - timedelta(days=random.randint(3, 10))
-            p_status = PaymentStatus.SUCCESS
-            r_status = RoomStatus.AVAILABLE 
-        elif b_status == BookingStatus.CANCELLED:
-            check_in_date = datetime.now().date() + timedelta(days=random.randint(1, 10))
-            p_status = random.choice([PaymentStatus.FAILED, PaymentStatus.PENDING])
-            r_status = RoomStatus.AVAILABLE 
-        elif b_status == BookingStatus.PENDING:
-            check_in_date = datetime.now().date() + timedelta(days=random.randint(1, 10))
-            p_status = PaymentStatus.PENDING
-            r_status = RoomStatus.AVAILABLE 
-        else: # CONFIRMED
-            check_in_date = datetime.now().date() + timedelta(days=random.randint(1, 10))
-            p_status = PaymentStatus.SUCCESS
-            r_status = random.choice([RoomStatus.BOOKED, RoomStatus.OCCUPIED])
+            # Lấy phòng trống của loại phòng đã chọn
+            available_rooms = Room.query.filter_by(status=RoomStatus.AVAILABLE, room_type_id=selected_room_type.id).all()
+            if not available_rooms:
+                continue
+                
+            num_rooms = random.randint(1, min(2, len(available_rooms)))
+            selected_rooms = random.sample(available_rooms, num_rooms)
             
-        check_out_date = check_in_date + timedelta(days=random.randint(1, 3))
-        num_days = (check_out_date - check_in_date).days
-        
-        booking = Booking(
-            user_id=customer.id,
-            hotel_id=hotel.id,
-            check_in=check_in_date,
-            check_out=check_out_date,
-            status=b_status,
-            total_price=0 
-        )
-        db.session.add(booking)
-        db.session.flush() 
-        
-        total_price = 0
-        for room in selected_rooms:
-            room.status = r_status 
-            price = room.room_type.base_price
-            total_price += price * num_days
+            b_status = random.choice([BookingStatus.CONFIRMED, BookingStatus.CANCELLED, BookingStatus.COMPLETED])
             
-            detail = BookingDetail(
-                booking_id=booking.id,
-                room_id=room.id,
-                price_at_booking=price
+            if b_status == BookingStatus.COMPLETED:
+                check_in_date = datetime.now().date() - timedelta(days=random.randint(3, 10))
+                p_status = PaymentStatus.SUCCESS
+                r_status = RoomStatus.AVAILABLE 
+            elif b_status == BookingStatus.CANCELLED:
+                check_in_date = datetime.now().date() + timedelta(days=random.randint(1, 10))
+                p_status = random.choice([PaymentStatus.FAILED, PaymentStatus.PENDING])
+                r_status = RoomStatus.AVAILABLE 
+            else: # CONFIRMED
+                check_in_date = datetime.now().date() + timedelta(days=random.randint(1, 10))
+                p_status = PaymentStatus.SUCCESS
+                r_status = random.choice([RoomStatus.BOOKED, RoomStatus.OCCUPIED])
+            
+            check_out_date = check_in_date + timedelta(days=random.randint(1, 3))
+            num_days = (check_out_date - check_in_date).days
+            
+            booking = Booking(
+                user_id=customer.id,
+                hotel_id=hotel.id,
+                room_type_id=selected_room_type.id,
+                check_in=check_in_date,
+                check_out=check_out_date,
+                status=b_status,
+                total_price=0 
             )
-            db.session.add(detail)
+            db.session.add(booking)
+            db.session.flush() 
             
-        booking.total_price = total_price
+            total_price = 0
+            for room in selected_rooms:
+                room.status = r_status 
+                price = room.room_type.base_price
+                total_price += price * num_days
+                
+                detail = BookingDetail(
+                    booking_id=booking.id,
+                    room_id=room.id,
+                    price_at_booking=price
+                )
+                db.session.add(detail)
+                
+            booking.total_price = total_price
+            
+            payment = Payment(
+                booking_id=booking.id,
+                payment_method=PaymentMethod.MOMO,
+                amount=total_price,
+                status=p_status
+            )
+            if p_status == PaymentStatus.SUCCESS:
+                payment.payment_date = datetime.now()
+                payment.transaction_id = f"MOMO_TRANS_{random.randint(100000, 999999)}"
+            db.session.add(payment)
         
-        payment = Payment(
-            booking_id=booking.id,
-            payment_method=PaymentMethod.MOMO,
-            amount=total_price,
-            transaction_id=f"MOMO{random.randint(100000, 999999)}" if p_status == PaymentStatus.SUCCESS else None,
-            status=p_status,
-            payment_date=datetime.now() if p_status == PaymentStatus.SUCCESS else None
+    # Tạo thêm dữ liệu ảo cho RefundLog
+    print("Đang tạo RefundLogs ảo...")
+    for i in range(3):
+        refund = RefundLog(
+            order_id=f"MOMO_{int(datetime.now().timestamp() * 1000) + i}",
+            trans_id=f"MOMO_TRANS_{random.randint(100000, 999999)}",
+            amount=random.choice([500000, 1000000, 1500000]),
+            reason="Lỗi Overbooking: Hết phòng khi đang thanh toán"
         )
-        db.session.add(payment)
+        db.session.add(refund)
         
     db.session.commit()
 
@@ -461,7 +479,12 @@ def seed_other_tables(created_hotels):
         SystemConfig(config_key='MAINTENANCE_MODE', config_value='false', description='Bật/tắt chế độ bảo trì toàn hệ thống'),
         SystemConfig(config_key='MAXIMUM_PASSWORD_LENGHT', config_value='20', description='Độ dài tối đa của mật khẩu'),
         SystemConfig(config_key='MINIMUM_PASSWORD_LENGTH', config_value='6', description='Độ dài tối thiếu của mật khẩu'),
-        SystemConfig(config_key='DEFAULT_PER_PAGE', config_value='12', description='Số lượng mục hiển thị mặc định trên mỗi trang')
+        SystemConfig(config_key='DEFAULT_PER_PAGE', config_value='12', description='Số lượng mục hiển thị mặc định trên mỗi trang'),
+        SystemConfig(config_key='CHECK_IN_TIME', config_value='14:00', description='Thời gian nhận phòng mặc định (HH:MM)'),
+        SystemConfig(config_key='CHECK_OUT_TIME', config_value='12:00', description='Thời gian trả phòng mặc định (HH:MM)'),
+        SystemConfig(config_key='HOTLINE_NUMBER', config_value='19001508', description='Số điện thoại hotline hỗ trợ khách hàng'),
+        SystemConfig(config_key='OTP_EXPIRATION_MINUTES', config_value='5', description='Thời gian tồn tại của mã OTP (phút)'),
+        SystemConfig(config_key='TAX_FEE_PERCENTAGE', config_value='0', description='Phần trăm thuế/phí áp dụng cho đơn đặt phòng')
     ]
     db.session.bulk_save_objects(configs)
     
@@ -472,7 +495,8 @@ def seed_other_tables(created_hotels):
             otp = OTP(
                 user_id=customer.id,
                 otp_code=str(random.randint(100000, 999999)),
-                expires_at=datetime.now() + timedelta(minutes=5)
+                expires_at=datetime.now() + timedelta(minutes=5),
+                is_used=True
             )
             db.session.add(otp)
             
@@ -486,14 +510,17 @@ def seed_other_tables(created_hotels):
     # 3. PricePrediction & 5. PriceHistory
     if created_hotels:
         for hotel in created_hotels[:3]:
+            # Tạo 1 gợi ý tăng giá chung cho cả khách sạn
+            pred = PricePrediction(
+                hotel_id=hotel.id,
+                target_date=datetime.now().date() + timedelta(days=30),
+                adjustment_percentage=0.15,
+                reason="Mùa du lịch cao điểm"
+            )
+            db.session.add(pred)
+            
+            # Vẫn tạo lịch sử giá cho từng phòng
             for rt in hotel.room_types:
-                pred = PricePrediction(
-                    room_type_id=rt.id,
-                    target_date=datetime.now().date() + timedelta(days=30),
-                    adjustment_percentage=0.15,
-                    reason="Mùa du lịch cao điểm"
-                )
-                db.session.add(pred)
                 
                 history = PriceHistory(
                     room_type_id=rt.id,
