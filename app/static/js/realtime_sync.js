@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                     // Cần đổi thành thẻ A để bấm được
                                     const newBtn = document.createElement('a');
                                     newBtn.id = btn.id;
-                                    newBtn.href = `/booking/room-type/${roomTypeId}?check_in=${checkIn}&check_out=${checkOut}`;
+                                    newBtn.href = `/booking/room-type/${roomTypeId}`;
                                     newBtn.className = "btn btn-primary rounded-pill px-4 fw-medium shadow-sm";
                                     newBtn.style.border = "none";
                                     newBtn.innerHTML = '<i class="bi bi-plus"></i>Đặt phòng ngay';

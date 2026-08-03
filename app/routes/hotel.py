@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, redirect, render_template, request, jsonify, session, url_for
 from app.services import HotelService, BookingService
 from app.extensions import db
 from app.utils import get_vn_time
-
+from urllib.parse import urlparse
 
 hotel_bp = Blueprint('hotel', __name__)
 
@@ -40,6 +40,26 @@ def hotel_detail(hotel_id):
                            check_out_date=check_out_date,
                            today_str=today.strftime('%Y-%m-%d'),
                            available_counts=available_counts)
+
+
+@hotel_bp.route('/set-search-dates', methods=['POST'])
+def set_search_dates():
+    check_in = request.form.get('check_in')
+    check_out = request.form.get('check_out')
+    keyword = request.form.get('keyword')
+    
+    booking_service = BookingService(db.session)
+    booking_service.parse_and_validate_dates(check_in, check_out)
+    
+    if request.referrer:
+        parsed_url = urlparse(request.referrer)
+        if parsed_url.path == url_for('hotel.hotel'):
+            if keyword:
+                return redirect(url_for('hotel.hotel', keyword=keyword))
+            return redirect(url_for('hotel.hotel'))
+        return redirect(request.referrer)
+    return redirect(url_for('main.index'))
+
 
 @hotel_bp.route('/api/hotel/<int:hotel_id>/availability')
 def api_hotel_availability(hotel_id):

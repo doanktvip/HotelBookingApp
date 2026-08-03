@@ -68,7 +68,7 @@
                         <span><i class="bi bi-hdd-stack me-1"></i>{{ room_type.bed_count }} {{ room_type.bed_type or 'giường' }}</span>
                     </div>
                     {% if available_count > 0 %}
-                        {% set book_url = url_for('booking.book_room_type', room_type_id=room_type.id, check_in=check_in_date, check_out=check_out_date) %}
+                        {% set book_url = url_for('booking.book_room_type', room_type_id=room_type.id) %}
                         {% call render_a_button(href=book_url, id="room-book-btn-" ~ room_type.id, class="btn-primary rounded-pill px-4 fw-medium shadow-sm", style="border: none;") %}
                             <i class="bi bi-plus"></i>Đặt phòng ngay
                         {% endcall %}

@@ -1,6 +1,5 @@
 from datetime import datetime
-import time
-from flask import Blueprint, render_template, request, flash, redirect, url_for, g, session
+from flask import Blueprint, render_template, request, flash, redirect, url_for, g
 from flask_login import login_required, current_user
 from app.extensions import db, socketio
 from app.services import RoomTypeService, BookingService
@@ -80,7 +79,9 @@ def book_room_type(room_type_id):
     return render_template('booking.html', 
                            room_type=room_type, 
                            PaymentMethod=PaymentMethod,
-                           max_allowed_quantity=max_allowed_quantity)
+                           max_allowed_quantity=max_allowed_quantity,
+                           check_in_date=check_in_date,
+                           check_out_date=check_out_date)
 
 
 @booking_bp.route('/booking/momo-return', methods=['GET'])

@@ -1,6 +1,5 @@
 import random
 from datetime import timedelta
-
 from flask import g
 from app.models import OTP, get_vn_time
 from app.services import BaseService
