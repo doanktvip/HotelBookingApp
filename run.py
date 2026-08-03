@@ -6,4 +6,4 @@ app = create_app()
 
 if __name__ == '__main__':
     # Khởi chạy server phát triển với SocketIO
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
