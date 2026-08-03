@@ -1,18 +1,21 @@
 from decimal import Decimal
-from flask import g
+from flask import g, session
 from app.models import Room, Booking, BookingDetail, BookingStatus, RoomStatus, Payment, PaymentStatus, RefundLog
 from app.services import BaseService
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.utils import get_vn_time
 from sqlalchemy.orm import joinedload
 from app.services.momo_service import MoMoService
 
 class BookingService(BaseService):
     def parse_and_validate_dates(self, check_in_str, check_out_str):
-        from datetime import datetime, timedelta
-        from app.utils import get_vn_time
-        
         today = get_vn_time().date()
+        
+        # Nếu không có query param, thử lấy từ session
+        if not check_in_str:
+            check_in_str = session.get('search_check_in')
+        if not check_out_str:
+            check_out_str = session.get('search_check_out')
         
         if check_in_str and check_out_str:
             try:
@@ -25,8 +28,16 @@ class BookingService(BaseService):
             check_in_date = today
             check_out_date = today + timedelta(days=1)
             
+        # Kiểm tra logic ngày hợp lệ
+        if check_in_date < today:
+            check_in_date = today
+            
         if check_out_date <= check_in_date:
             check_out_date = check_in_date + timedelta(days=1)
+            
+        # Lưu lại vào session để dùng cho lần sau
+        session['search_check_in'] = check_in_date.strftime('%Y-%m-%d')
+        session['search_check_out'] = check_out_date.strftime('%Y-%m-%d')
             
         return check_in_date, check_out_date
 

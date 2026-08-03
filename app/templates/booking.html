@@ -44,10 +44,10 @@
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                {{ ui.render_date_input('Ngày nhận phòng', 'check_in', value=request.args.get('check_in', '')) }}
+                                {{ ui.render_date_input('Ngày nhận phòng', 'check_in', value=check_in_date.strftime('%Y-%m-%d')) }}
                             </div>
                             <div class="col-md-6">
-                                {{ ui.render_date_input('Ngày trả phòng', 'check_out', value=request.args.get('check_out', '')) }}
+                                {{ ui.render_date_input('Ngày trả phòng', 'check_out', value=check_out_date.strftime('%Y-%m-%d')) }}
                             </div>
                             <div class="col-md-6 mt-4">
                                 <label class="form-label text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Số lượng (Tối đa {{ max_allowed_quantity }} phòng)</label>

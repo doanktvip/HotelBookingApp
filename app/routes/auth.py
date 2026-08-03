@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required
 from app.extensions import db
 from app.services.user_service import UserService
+
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -43,6 +44,7 @@ def register():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    session.pop('search_check_in', None)
+    session.pop('search_check_out', None)
     logout_user()
     return redirect(url_for('main.index'))
-    
