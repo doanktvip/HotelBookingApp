@@ -19,7 +19,6 @@ def index():
     room_type_pagination = room_type_service.get_room_types()
 
     hotel_service = HotelService(db.session)
-    # Lấy 4 khách sạn ngẫu nhiên hoặc trang đầu tiên
     hotels_pagination = hotel_service.get_hotels(per_page=4)
 
     recommended_hotels = search_service.get_recommended_hotels(

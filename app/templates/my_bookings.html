@@ -1,0 +1,112 @@
+{% extends 'layout/base.html' %}
+{% import 'layout/macros.html' as ui %}
+
+{% block title %}Đơn đặt phòng của tôi{% endblock %}
+
+{% block styles %}
+<!-- Không sử dụng custom CSS, hoàn toàn dùng Bootstrap Utilities -->
+{% endblock %}
+
+{% block content %}
+{% call ui.render_page_body('Đơn đặt phòng của tôi', 'Quản lý và theo dõi tất cả đặt phòng') %}
+    
+    <!-- Action Button (Floated relative to page body) -->
+    <div class="d-flex justify-content-start justify-content-md-end mb-4" style="margin-top: -65px;">
+        {% call ui.render_a_button(href=url_for('hotel.hotel'), class="btn-primary shadow-sm position-relative", style="z-index: 10;") %}
+            <i class="bi bi-plus-lg"></i> Đặt phòng mới
+        {% endcall %}
+    </div>
+
+    <!-- Tabs Navigation (Filter Chips) -->
+    {{ ui.render_filter_chips(BookingStatus, current_status, param_name='status') }}
+
+    <!-- Bookings List -->
+    {% if not bookings.items %}
+        <div class="text-center py-5 bg-white rounded-4 shadow-sm border-0 mt-4">
+            <i class="bi bi-calendar-x text-secondary opacity-50 mb-4 d-block" style="font-size: 5rem;"></i>
+            <h5 class="fw-bold">Bạn chưa có đơn đặt phòng nào ở mục này</h5>
+            <p class="text-muted mb-0">Hãy bắt đầu một chuyến đi mới cùng StayNow.</p>
+        </div>
+    {% else %}
+        <div class="d-flex flex-column gap-3">
+            {% for booking in bookings.items %}
+            <div class="card bg-white shadow-sm rounded-4 border position-relative">
+                <div class="card-body p-4">
+                    <!-- Action Button (Absolute Top Right) -->
+                    {% if booking.status.name == 'CONFIRMED' %}
+                    <div class="position-absolute" style="top: 1.5rem; right: 1.5rem; z-index: 2;">
+                        {% if booking.can_cancel %}
+                        {{ ui.render_modal_button('cancelBookingModal' ~ booking.id, 'Hủy đặt phòng', icon='bi-x-lg small', btn_class='btn btn-outline-danger rounded-pill px-4 py-2 fw-medium') }}
+                        
+
+                        {% else %}
+                        <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="Không thể hủy đơn trong vòng {{ booking.hotel.cancellation_policy_days }} ngày trước khi nhận phòng">
+                            {{ ui.render_btn_submit('Hủy đặt phòng', type='button', style='light border text-muted', icon_class='bi-x-lg', btn_class='px-4 mb-0', disabled=True) }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex flex-column flex-md-row align-items-md-center">
+                        <!-- Left: Image -->
+                        <div class="flex-shrink-0 rounded-3 overflow-hidden me-md-4 mb-3 mb-md-0" style="width: 140px; height: 140px;">
+                            <img src="{{ booking.hotel.image_url or url_for('static', filename='image/default_hotel.png') }}" alt="Hotel Image" class="w-100 h-100 object-fit-cover">
+                        </div>
+                        
+                        <!-- Middle: Info -->
+                        <div class="flex-grow-1 d-flex flex-column justify-content-center">
+                            <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                                <span class="text-secondary small fw-semibold">#{{ booking.id }}</span>
+                                {{ ui.render_status_badge(booking.status.name) }}
+                                {% if booking.payment and booking.payment.transaction_id %}
+                                <span class="badge bg-light text-secondary border px-2 py-1 small fw-normal ms-1" style="font-size: 0.75rem;">
+                                    <i class="bi bi-upc-scan me-1"></i>Mã GD: {{ booking.payment.transaction_id }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <h4 class="fw-bold mb-1">{{ booking.hotel.name }}</h4>
+                            <p class="text-muted mb-2">Loại phòng {{ booking.room_type.name }}</p>
+                            
+                            <div class="d-flex align-items-center flex-wrap gap-2 gap-md-4">
+                                <div class="text-secondary small">
+                                    <i class="bi bi-calendar-event me-1"></i>
+                                    {{ booking.check_in.strftime('%d/%m/%Y') }} <i class="bi bi-arrow-right mx-1"></i> {{ booking.check_out.strftime('%d/%m/%Y') }}
+                                </div>
+                                <div class="fw-bold text-dark fs-5">
+                                    {{"{:,.0f}".format(booking.total_price)}}đ
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        <div class="mt-4">
+            {{ ui.render_pagination(bookings, 'profile.my_bookings', status=current_status) }}
+        </div>
+    {% endif %}
+    
+    <!-- Render Tất Cả Modals Ở Ngoài Cùng Để Tránh Lỗi Z-Index -->
+    {% if bookings.items %}
+        {% for booking in bookings.items %}
+            {% if booking.status.name == 'CONFIRMED' and booking.can_cancel %}
+                <!-- Cancel Booking Modal -->
+                {% call ui.render_modal('cancelBookingModal' ~ booking.id, 'Xác nhận hủy đặt phòng') %}
+                    <p class="text-secondary mb-4 text-start">Bạn có chắc muốn hủy đặt phòng <strong>#{{ booking.id }}</strong>? Theo chính sách, bạn sẽ được hoàn <strong>100%</strong> giá trị đặt phòng.</p>
+                    <div class="d-flex gap-3">
+                        {{ ui.render_btn_submit('Giữ đặt phòng', type='button', style='light border', btn_class='flex-fill mb-0', **{'data-bs-dismiss': 'modal'}) }}
+                        <form method="POST" action="{{ url_for('profile.cancel_booking', booking_id=booking.id) }}" class="flex-fill m-0">
+                            {{ ui.render_btn_submit('Xác nhận hủy', style='danger', btn_class='w-100 mb-0') }}
+                        </form>
+                    </div>
+                {% endcall %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+{% endcall %}
+{% endblock %}

@@ -1,8 +1,8 @@
 import enum
-from datetime import datetime
-from app.extensions import db
+from app.extensions import db, cache
 from flask_login import UserMixin
 from app.utils import get_vn_time
+from datetime import timedelta
 from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, Float, Enum, DateTime, Date, Table, DECIMAL
 
 # ================= ENUMS (Các kiểu liệt kê dùng chung) =================
@@ -30,15 +30,14 @@ class RoomStatus(TextChoices):
 
 
 class BookingStatus(TextChoices):
-    PENDING = 'PENDING', 'Chờ thành toán'
     CONFIRMED = 'CONFIRMED', 'Đã xác nhận'
     CANCELLED = 'CANCELLED', 'Đã hủy đơn'
     COMPLETED = 'COMPLETED', 'Hoàn tất'
 
 
-class PaymentMethod(enum.Enum):
-    MOMO = 'MOMO'
-    # VNPAY = 'VNPAY'
+class PaymentMethod(TextChoices):
+    MOMO = 'MOMO', 'Ví điện tử MoMo'
+    VNPAY = 'VNPAY', 'Cổng thanh toán VNPAY'
 
 
 class PaymentStatus(TextChoices):
@@ -82,6 +81,7 @@ class Tag(db.Model):
     __tablename__ = 'tags'
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True, nullable=False)
+    icon = Column(String(50), nullable=True, default="bi-star")
 
 
 class Hotel(db.Model):
@@ -100,7 +100,8 @@ class Hotel(db.Model):
     image_url = Column(String(255), nullable=True)
 
     # Các mối quan hệ
-    room_types = db.relationship('RoomType', backref='hotel', lazy=True)
+    room_types = db.relationship('RoomType', backref='hotel', lazy=True, cascade='all, delete-orphan')
+    price_predictions = db.relationship('PricePrediction', backref='hotel', lazy=True, cascade='all, delete-orphan')
     bookings = db.relationship('Booking', backref='hotel', lazy=True)
     tags = db.relationship('Tag', secondary=hotel_tags, lazy='subquery',backref=db.backref('hotels', lazy=True))
 
@@ -134,7 +135,6 @@ class RoomType(db.Model):
 
     # Các mối quan hệ
     rooms = db.relationship('Room', backref='room_type', lazy=True)
-    price_predictions = db.relationship('PricePrediction', backref='room_type', lazy=True)
 
     def soft_delete(self):
         self.is_active = False
@@ -167,15 +167,22 @@ class Booking(db.Model):
     id = Column(Integer, primary_key=True)  # ID mã đơn đặt phòng
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # Người đặt
     hotel_id = Column(Integer, ForeignKey('hotels.id'), nullable=False)  # Khách sạn được đặt
+    room_type_id = Column(Integer, ForeignKey('room_types.id'), nullable=False)  # Loại phòng được đặt
     booking_date = Column(DateTime, default=get_vn_time, nullable=False)  # Thời điểm tạo đơn đặt phòng
     check_in = Column(Date, nullable=False, index=True)  # Ngày bắt đầu ở
     check_out = Column(Date, nullable=False, index=True)  # Ngày rời đi
     total_price = Column(DECIMAL(15, 2), nullable=False)  # Tổng số tiền cần thanh toán cho đơn này
-    status = Column(Enum(BookingStatus, name='booking_statuses'), default=BookingStatus.PENDING, nullable=False)
+    status = Column(Enum(BookingStatus, name='booking_statuses'), default=BookingStatus.CONFIRMED, nullable=False)
 
     # Các mối quan hệ
     booking_details = db.relationship('BookingDetail', backref='booking', lazy=True, cascade='all, delete-orphan')
     payment = db.relationship('Payment', backref='booking', uselist=False, cascade='all, delete-orphan')
+    room_type = db.relationship('RoomType', backref='bookings', lazy=True)
+
+    @property
+    def can_cancel(self):
+        policy_date = self.check_in - timedelta(days=self.hotel.cancellation_policy_days)
+        return get_vn_time().date() <= policy_date
 
 
 class BookingDetail(db.Model):
@@ -225,6 +232,34 @@ class SystemConfig(db.Model):
     config_key = Column(String(100), unique=True, nullable=False)  # Khóa cấu hình (VD: 'MAX_ROOMS_PER_BOOKING')
     config_value = Column(String(255), nullable=False)  # Giá trị cấu hình (VD: '5')
     description = Column(Text, nullable=True)  # Lời giải thích cho cấu hình này
+    
+    @staticmethod
+    @cache.memoize()
+    def get_all_raw_configs():
+        configs = SystemConfig.query.all()
+        return {c.config_key: c.config_value for c in configs}
+
+    @classmethod
+    def get_value(cls, key, default=None, type_func=None):
+        all_configs = cls.get_all_raw_configs()
+        val = all_configs.get(key)
+        
+        if val is not None:
+            if type_func is None and default is not None:
+                type_func = type(default)
+                
+            if type_func is bool:
+                return str(val).lower() == 'true'
+                
+            if type_func is None:
+                return val
+                
+            try:
+                return type_func(val)
+            except (ValueError, TypeError):
+                return default
+                
+        return default
 
 
 class PricePrediction(db.Model):
@@ -233,7 +268,7 @@ class PricePrediction(db.Model):
     __tablename__ = 'price_predictions'
 
     id = Column(Integer, primary_key=True)  # ID đề xuất
-    room_type_id = Column(Integer, ForeignKey('room_types.id'), nullable=False)  # Áp dụng cho loại phòng nào
+    hotel_id = Column(Integer, ForeignKey('hotels.id'), nullable=False)  # Áp dụng cho toàn bộ khách sạn
     target_date = Column(Date, nullable=False)  # Ngày áp dụng giá mới (Ví dụ: 30/04/2026)
     adjustment_percentage = Column(Float, nullable=False)  # Tỉ lệ thay đổi giá so với giá gốc (VD: 0.1 = 10%)
     reason = Column(String(255))  # Lý do đổi giá (Ví dụ: "Lễ 30/4", "Mùa thấp điểm")
@@ -261,3 +296,14 @@ class PriceHistory(db.Model):
     old_price = Column(DECIMAL(15, 2), nullable=False)
     new_price = Column(DECIMAL(15, 2), nullable=False)
     changed_at = Column(DateTime, default=get_vn_time, nullable=False)
+
+class RefundLog(db.Model):
+    """Bảng lưu vết các giao dịch hoàn tiền tự động (vd: do Overbooking)"""
+    __tablename__ = 'refund_logs'
+
+    id = Column(Integer, primary_key=True)
+    order_id = Column(String(100), nullable=False, index=True)
+    trans_id = Column(String(100), nullable=False)
+    amount = Column(DECIMAL(15, 2), nullable=False)
+    reason = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=get_vn_time, nullable=False)

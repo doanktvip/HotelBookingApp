@@ -1,0 +1,170 @@
+{% extends 'layout/base.html' %}
+{% import 'layout/macros.html' as ui %}
+
+{% block title %}Xác nhận đặt phòng{% endblock %}
+
+{% block content %}
+{% call ui.render_page_body('Xác nhận đặt phòng', 'Vui lòng kiểm tra kỹ thông tin đặt phòng trước khi tiến hành thanh toán.') %}
+        <form method="POST" action="{{ url_for('booking.book_room_type', room_type_id=room_type.id) }}" id="bookingForm">
+            <div class="row g-4">
+                
+                <!-- Cột trái (Thông tin form) -->
+                <div class="col-lg-7 col-xl-8">
+                    
+                    <!-- Thông tin khách hàng -->
+                    <div class="card border border-light-subtle shadow-sm p-4 mb-4 rounded-4 bg-white">
+                        <h5 class="fw-bold text-dark mb-4 d-flex align-items-center gap-2">
+                            <i class="bi bi-person-badge text-primary"></i> Thông tin khách hàng
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                {{ ui.render_form_input('Họ tên', 'name', current_user.username, icon='bi-person', readonly=true) }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ ui.render_form_input('Email', 'email', current_user.email, type='email', icon='bi-envelope', readonly=true) }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ ui.render_form_input('Số điện thoại', 'phone', current_user.phone or 'Chưa cập nhật', icon='bi-telephone', readonly=true) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thời gian & Lựa chọn phòng -->
+                    <div class="card border border-light-subtle shadow-sm p-4 mb-4 rounded-4 bg-white">
+                        <h5 class="fw-bold text-dark mb-4 d-flex align-items-center gap-2">
+                            <i class="bi bi-door-open text-primary"></i> Lựa chọn phòng & Thời gian
+                        </h5>
+                        
+                        <div class="d-flex flex-column gap-1 mb-4 pb-4 border-bottom border-light-subtle">
+                            <h5 class="fw-bold text-dark mb-0">{{ room_type.name }}</h5>
+                            <div class="text-muted small">
+                                <span class="fw-bold text-primary" id="basePrice" data-price="{{ room_type.base_price }}">{{ "{:,.0f}".format(room_type.base_price) }}đ</span> / đêm
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                {{ ui.render_date_input('Ngày nhận phòng', 'check_in', value=check_in_date.strftime('%Y-%m-%d')) }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ ui.render_date_input('Ngày trả phòng', 'check_out', value=check_out_date.strftime('%Y-%m-%d')) }}
+                            </div>
+                            <div class="col-md-6 mt-4">
+                                <label class="form-label text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">Số lượng (Tối đa {{ max_allowed_quantity }} phòng)</label>
+                                <select class="form-select form-select-lg bg-light border-0 rounded-3" id="quantity" name="quantity" required style="cursor: pointer;">
+                                    {% for i in range(1, max_allowed_quantity + 1) %}
+                                        <option value="{{ i }}">{{ i }} phòng</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phương thức thanh toán -->
+                    <div class="card border border-light-subtle shadow-sm p-4 rounded-4 bg-white">
+                        <h5 class="fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                            <i class="bi bi-credit-card-2-front text-primary"></i> Phương thức thanh toán
+                        </h5>
+                        <p class="text-muted small mb-4">Thanh toán an toàn 100% qua ví điện tử</p>
+                        
+                        <div class="row g-3 mb-4">
+                            {% for method in PaymentMethod %}
+                            <div class="col-sm-6">
+                                <input type="radio" name="payment_method" id="pay_{{ method.name|lower }}" value="{{ method.name }}" class="btn-check" autocomplete="off" {% if loop.first %}checked{% endif %}>
+                                <label class="btn btn-outline-primary h-100 w-100 rounded-4 p-4 d-flex flex-column align-items-center justify-content-center text-center transition-all border-2" for="pay_{{ method.name|lower }}">
+                                    {% if method.name == 'MOMO' %}
+                                    <img src="https://res.cloudinary.com/db4bjqp4f/image/upload/v1785643564/zobgneepzn8usmp9kl7u.webp" alt="MoMo" class="rounded-circle mb-3 shadow-sm object-fit-cover" style="width: 48px; height: 48px;">
+                                    <h6 class="fw-bold mb-1">MoMo</h6>
+                                    {% elif method.name == 'VNPAY' %}
+                                    <img src="https://res.cloudinary.com/db4bjqp4f/image/upload/v1785643958/opegewnxgmhnp27fstqu.png" alt="VNPAY" class="rounded-circle mb-3 shadow-sm object-fit-cover" style="width: 48px; height: 48px;">
+                                    <h6 class="fw-bold mb-1">VNPAY</h6>
+                                    {% else %}
+                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center fw-bold mb-3 shadow-sm" style="width: 48px; height: 48px; font-size: 1.2rem;"><i class="bi bi-wallet2"></i></div>
+                                    <h6 class="fw-bold mb-1">{{ method.name }}</h6>
+                                    {% endif %}
+                                    <small class="opacity-75" style="font-size: 0.75rem;">{{ method.label }}</small>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-flex gap-2 align-items-center bg-primary bg-opacity-10 text-primary p-3 rounded-3 mt-3" style="font-size: 0.85rem;">
+                            <i class="bi bi-shield-check fs-5"></i>
+                            <span>Thanh toán bảo mật bằng mã hóa SSL 256-bit. Toàn bộ số tiền thu khi đặt phòng.</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Cột phải (Tóm tắt & Submit) -->
+                <div class="col-lg-5 col-xl-4">
+                    <div class="card border border-light-subtle shadow-sm p-4 rounded-4 bg-white sticky-top" style="top: 5.5rem; z-index: 1019;">
+                        <h5 class="fw-bold mb-4 text-dark">Tóm tắt đặt phòng</h5>
+                        
+                        {% set optimized_img = room_type.image_url|replace('upload/', 'upload/w_600,c_fill,q_auto,f_auto/') if room_type.image_url else url_for('static', filename='image/default_room_type.png') %}
+                        <img src="{{ optimized_img }}" alt="{{ room_type.name }}" class="w-100 object-fit-cover rounded-3 shadow-sm mb-4" style="height: 180px;">
+                        
+                        <h6 class="fw-bold text-dark mb-1">{{ room_type.hotel.name }}</h6>
+                        <p class="text-muted small mb-4">{{ room_type.hotel.address }}, {{ room_type.hotel.location }}</p>
+                        
+                        <div class="d-flex justify-content-between mb-2 text-secondary" style="font-size: 0.95rem;">
+                            <span>Nhận phòng</span>
+                            <span class="fw-bold text-dark text-end" id="summary-checkin">-</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-secondary" style="font-size: 0.95rem;">
+                            <span>Trả phòng</span>
+                            <span class="fw-bold text-dark text-end" id="summary-checkout">-</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-secondary" style="font-size: 0.95rem;">
+                            <span>Lưu trú</span>
+                            <span class="fw-bold text-dark text-end" id="summary-nights">0 đêm</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-secondary" style="font-size: 0.95rem;">
+                            <span>Phòng</span>
+                            <span class="fw-bold text-dark text-end" id="summary-qty">1 phòng</span>
+                        </div>
+                        
+                        <hr class="my-4 text-light-subtle">
+                        
+                        <div class="d-flex justify-content-between mb-2 text-secondary" style="font-size: 0.95rem;">
+                            <span>
+                                <span id="calc-base-price">0đ</span> x 
+                                <span id="calc-nights">0</span> đêm x 
+                                <span id="calc-qty">1</span> phòng
+                            </span>
+                            <span class="fw-bold text-dark text-end" id="summary-subtotal">0đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-secondary" style="font-size: 0.95rem;">
+                            <span>Thuế & phí ({{ g.tax_fee }}%)</span>
+                            <span class="fw-bold text-dark text-end" id="summary-tax">0đ</span>
+                        </div>
+                        
+                        <hr class="my-4 text-light-subtle">
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <span class="fw-bold fs-5 text-dark">Tổng cộng</span>
+                            <span class="fw-bold fs-4 text-primary" id="summary-total">0đ</span>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100 rounded-3 fw-bold d-flex justify-content-center align-items-center gap-2 shadow-sm py-3 transition-all border-0">
+                            Thanh toán <span id="btn-total">0đ</span>
+                        </button>
+                        
+                        <p class="text-center text-muted mt-3 mb-0" style="font-size: 0.75rem;">
+                            Khi đặt phòng, bạn đồng ý với <a href="#" class="text-decoration-none">điều khoản dịch vụ</a>.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+{% endcall %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const TAX_FEE_PERCENT = {{ g.tax_fee|default(0) }};
+</script>
+<script src="{{ url_for('static', filename='js/date_sync.js') }}"></script>
+<script src="{{ url_for('static', filename='js/booking.js') }}"></script>
+{% endblock %}

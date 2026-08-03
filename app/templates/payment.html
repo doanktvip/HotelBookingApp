@@ -1,0 +1,73 @@
+{% extends 'layout/base.html' %}
+{% block title %}Thanh toán MoMo{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                <div class="bg-primary bg-opacity-10 p-4 text-center border-bottom border-primary border-opacity-25">
+                    <img src="https://res.cloudinary.com/db4bjqp4f/image/upload/v1785643564/zobgneepzn8usmp9kl7u.webp" alt="MoMo" style="height: 48px; border-radius: 12px;" class="mb-3 shadow-sm">
+                    <h5 class="fw-bold mb-0">Thanh toán qua Ví MoMo</h5>
+                </div>
+                
+                <div class="card-body p-4 text-center">
+                    <div id="payment-status-container">
+                        <h6 class="text-muted mb-3">Mã đơn hàng: <span class="text-dark fw-bold">{{ order_id }}</span></h6>
+                        <p class="text-muted small mb-3 fst-italic px-3">{{ order_info }}</p>
+                        <h3 class="text-primary fw-bold mb-4">{{ "{:,.0f}".format(amount) }}đ</h3>
+                        
+                        <div class="d-inline-block p-2 bg-white rounded-4 shadow-sm border border-2 border-primary mb-4 position-relative">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ pay_url | urlencode }}" alt="MoMo QR Code" class="img-fluid rounded" style="width: 250px; height: 250px;">
+                            
+                            <div id="qr-loading-overlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-90 rounded-3 d-none" style="z-index: 10;">
+                                <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                                <h5 class="text-success fw-bold mt-2">Thành công!</h5>
+                                <p class="text-muted small">Đang chuyển trang...</p>
+                            </div>
+                            
+                            <div id="qr-error-overlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white bg-opacity-90 rounded-3 d-none" style="z-index: 10; padding: 1rem;">
+                                <i class="bi bi-x-circle-fill text-danger" style="font-size: 4rem;"></i>
+                                <h5 class="text-danger fw-bold mt-2">Rất tiếc!</h5>
+                                <p class="text-muted small text-center" id="qr-error-reason">Phòng đã có người đặt trước. Tiền đang được hoàn lại.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info border-0 rounded-3 text-start small mb-0">
+                            <ul class="mb-0 ps-3">
+                                <li class="mb-1">Mở ứng dụng <strong>MoMo</strong> trên điện thoại.</li>
+                                <li class="mb-1">Chọn <strong>Quét mã QR</strong>.</li>
+                                <li>Màn hình này sẽ tự động chuyển hướng sau khi thanh toán thành công.</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-4 d-flex align-items-center justify-content-center">
+                            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                            <small class="text-muted ms-2 fw-bold">Hệ thống đang tự động chờ nhận tiền...</small>
+                        </div>
+                        
+                        <a href="{{ url_for('booking.momo_return') }}?resultCode=0" class="btn btn-link text-muted small mt-2 opacity-50" style="font-size: 0.7rem;">Tôi đã thanh toán (Dự phòng)</a>
+                        <button id="btn-mock-ipn" class="btn btn-danger mt-2 w-100 fw-bold">
+                            [DÀNH CHO DEV] Gỉa lập thanh toán thành công (Bắn IPN ảo)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+    // Khai báo biến toàn cục từ Jinja2 cho file js bên ngoài sử dụng
+    const ORDER_ID = "{{ order_id }}";
+    const MOMO_RETURN_URL = "{{ url_for('booking.momo_return') }}";
+    const AMOUNT = {{ amount }};
+    const EXTRA_DATA = "{{ extra_data }}";
+    const MOMO_IPN_URL = "{{ url_for('booking.momo_ipn') }}";
+    const MY_BOOKINGS_URL = "{{ url_for('profile.my_bookings') }}";
+</script>
+<script src="{{ url_for('static', filename='js/payment.js') }}"></script>
+{% endblock %}

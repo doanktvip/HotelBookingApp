@@ -135,7 +135,32 @@ window.addEventListener('beforeunload', function () {
     }
 });
 
+function initBackToTop() {
+    const backToTopBtn = document.getElementById("backToTopBtn");
+    if (!backToTopBtn) return;
+
+    const toggleBackToTop = () => {
+        if (window.scrollY > 400) {
+            backToTopBtn.classList.add("show");
+        } else {
+            backToTopBtn.classList.remove("show");
+        }
+    };
+
+    toggleBackToTop();
+
+    window.addEventListener("scroll", toggleBackToTop);
+
+    backToTopBtn.addEventListener("click", function () {
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     loadSessionAlerts();
     initAutoCloseAlerts();
-});
+    initBackToTop();
+});"document.addEventListener('DOMContentLoaded', function () { var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle=\"tooltip\"]')); var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl) }); });" 

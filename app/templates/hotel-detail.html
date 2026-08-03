@@ -3,32 +3,145 @@
 
 {% block title %}Chi tiết khách sạn{% endblock %}
 
+{% block styles %}
+<link href="{{ url_for('static', filename='css/hotel-detail.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-    <div class="container mt-5">
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h1 class="fw-bold">{{ hotel.name }}</h1>
-                <p class="text-muted">{{ hotel.address }}</p>
+<!-- Hero Section -->
+<div class="hotel-hero-section">
+    {% set optimized_hero_img = hotel.image_url|replace('upload/', 'upload/w_1920,c_fill,q_auto,f_auto/') if hotel.image_url else url_for('static', filename='image/default_hotel.png') %}
+    <img src="{{ optimized_hero_img }}" alt="{{ hotel.name }}" class="hotel-hero-bg">
+    <div class="hotel-hero-overlay"></div>
+    <div class="hotel-hero-content container">
+        <nav class="d-flex align-items-center gap-2 mb-3" style="font-size: 0.875rem; color: rgba(255,255,255,0.7);">
+            <a href="/" class="text-decoration-none text-reset text-hover-white transition-colors">Khám phá</a>
+            <i class="bi bi-chevron-right" style="font-size: 0.75rem;"></i>
+            <span class="text-white fw-medium">{{ hotel.name }}</span>
+        </nav>
+        <h1 class="display-5 fw-bold text-white mb-2">{{ hotel.name }}</h1>
+        <div class="d-flex align-items-center flex-wrap gap-3 mt-3">
+            <div class="d-flex align-items-center gap-2 text-white">
+                <i class="bi bi-geo-alt-fill text-primary"></i>
+                <span class="opacity-75" style="font-size: 0.9rem;">{{ hotel.address }}, {{ hotel.location }}</span>
             </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="row g-4">
-                    {% for room_type in room_types %}
-                    <div class="col-md-6 col-lg-4">
-                        <!-- Dùng Hotel Card Component đã tạo -->
-                        {{ ui.render_hotel_card(room_type, detail_url=url_for('room_type.room_type_detail', room_type_id=room_type.id)) }}
-                    </div>
-                    {% else %}
-                    <div class="col-12 text-center text-muted py-5">
-                        <p class="display-6">Không tìm thấy phòng nào</p>
-                        <p class="lead">Thử điều chỉnh tìm kiếm của bạn</p>
-                    </div>
-                    {% endfor %}
-                </div>
-
+            <div class="d-flex align-items-center gap-1 text-white">
+                <i class="bi bi-star-fill text-warning"></i>
+                <span class="fw-bold">{{ hotel.rating|default('5.0') }}</span>
             </div>
         </div>
     </div>
+</div>
+
+<div class="hotel-content-wrapper container p-0">
+    <div class="row g-4">
+        <!-- Cột trái: Thông tin & Loại phòng -->
+        <div class="col-lg-8">
+            <!-- Giới thiệu -->
+            <div class="hotel-box">
+                <h4 class="fw-bold mb-3">Giới thiệu</h4>
+                <p class="text-muted mb-0" style="font-size: 0.95rem; line-height: 1.6;">
+                    {{ hotel.description or 'Một khách sạn tuyệt vời mang đến trải nghiệm nghỉ dưỡng đẳng cấp với cơ sở vật chất hiện đại, dịch vụ tận tâm và vị trí đắc địa.' }}
+                </p>
+            </div>
+
+            <!-- Tiện ích -->
+            <div class="hotel-box">
+                <h4 class="fw-bold mb-4">Tiện ích khách sạn</h4>
+                <div class="row g-3">
+                    {% for tag in hotel.tags %}
+                    <div class="col-6 col-md-3"><div class="amenity-item"><i class="bi {{ tag.icon }} text-primary"></i> {{ tag.name }}</div></div>
+                    {% else %}
+                    <div class="col-6 col-md-3"><div class="amenity-item"><i class="bi bi-clipboard-x text-primary"></i> Không có tiện ích nào</div></div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h3 class="fw-bold mb-0">Danh sách loại phòng</h3>
+                </div>
+                
+                <!-- Form Chọn Ngày (Date Picker) -->
+                <div class="card border-0 shadow-sm mb-4" style="border-radius: 1rem; background-color: #f8fafc;">
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('hotel.set_search_dates') }}" class="row g-3 align-items-end">
+                            <div class="col-md-5">
+                                <label for="check_in" class="form-label fw-bold text-muted small mb-1">Ngày nhận phòng</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-calendar-event text-primary"></i></span>
+                                    <input type="date" class="form-control border-start-0 ps-0" id="check_in" name="check_in" value="{{ check_in_date.strftime('%Y-%m-%d') }}" min="{{ today_str }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="check_out" class="form-label fw-bold text-muted small mb-1">Ngày trả phòng</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-calendar-check text-primary"></i></span>
+                                    <input type="date" class="form-control border-start-0 ps-0" id="check_out" name="check_out" value="{{ check_out_date.strftime('%Y-%m-%d') }}" min="{{ check_in_date.strftime('%Y-%m-%d') }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100 fw-bold rounded-3" style="height: calc(2.5rem + 2px);">Kiểm tra</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {% for room_type in hotel.room_types %}
+                {{ ui.render_room_type_card(
+                    room_type, 
+                    available_count=available_counts[room_type.id], 
+                    check_in_date=check_in_date.strftime('%Y-%m-%d'), 
+                    check_out_date=check_out_date.strftime('%Y-%m-%d')
+                ) }}
+                {% else %}
+                <div class="text-center py-5 bg-white rounded-4 border">
+                    <h5 class="text-muted mb-0">Hiện chưa có loại phòng nào cho khách sạn này.</h5>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Cột phải: Thông tin đặt phòng (Sticky) -->
+        <div class="col-lg-4">
+            <div class="sticky-sidebar">
+                <div class="hotel-box">
+                    <h5 class="fw-bold border-bottom pb-3 mb-3">Chính sách chung</h5>
+                    <ul class="list-unstyled mb-0" style="font-size: 0.9rem;">
+                        <li class="d-flex gap-2 mb-3">
+                            <i class="bi bi-clock-history text-primary mt-1"></i>
+                            <div>
+                                <strong class="d-block text-dark">Nhận phòng/Trả phòng</strong>
+                                <span class="text-muted">Nhận phòng sau {{ g.check_in_time.strftime('%H:%M') if g.check_in_time.strftime is defined else g.check_in_time }}<br>Trả phòng trước {{ g.check_out_time.strftime('%H:%M') if g.check_out_time.strftime is defined else g.check_out_time }}</span>
+                            </div>
+                        </li>
+                        <li class="d-flex gap-2 mb-3">
+                            <i class="bi bi-x-circle text-primary mt-1"></i>
+                            <div>
+                                <strong class="d-block text-dark">Hủy đặt phòng</strong>
+                                <span class="text-muted">Được phép hủy miễn phí trước {{ hotel.cancellation_policy_days }} ngày so với ngày nhận phòng.</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="hotel-box bg-primary text-white border-0 shadow-lg text-center p-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-telephone-outbound me-2"></i>Cần hỗ trợ?</h5>
+                    <p class="mb-3" style="font-size: 0.9rem; opacity: 0.9;">Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7 để có trải nghiệm tốt nhất.</p>
+                    <a href="tel:{{ g.hotline_number }}" class="btn btn-light rounded-pill fw-bold text-primary w-100">Gọi ngay: {{ g.hotline_number }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/date_sync.js') }}"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+    // Định nghĩa biến toàn cục cho file JS rời
+    window.HOTEL_ID = {{ hotel.id }};
+</script>
+<script src="{{ url_for('static', filename='js/realtime_sync.js') }}"></script>
 {% endblock %}

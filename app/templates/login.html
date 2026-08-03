@@ -1,0 +1,98 @@
+{% extends 'layout/base.html' %}
+{% from 'layout/macros.html' import render_input_floating, render_btn_submit %}
+
+{% block title %}Đăng nhập / Đăng ký{% endblock %}
+
+{% block styles %}
+    <!-- Auth CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block content %}
+<div class="auth-container w-100 h-100 d-flex flex-column justify-content-center align-items-center">
+    <!-- Logo Section -->
+    <div class="logo-header">
+        <a href="/" class="text-white">
+            <div class="logo-icon">
+                <i class="bi bi-building fs-4"></i>
+            </div>
+        </a>
+        <h2 class="fw-bold mb-1 fs-3">StayNow</h2>
+        <p class="mb-0 text-white-50" style="font-size: 14px;">Nền tảng đặt phòng khách sạn thông minh</p>
+    </div>
+
+    <!-- Auth Card -->
+    <div class="auth-card">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs nav-fill" id="authTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active w-100" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-pane" type="button" role="tab">Đăng nhập</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link w-100" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-pane" type="button" role="tab">Đăng ký</button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content p-4 p-md-4" id="authTabsContent">
+            <!-- Đăng nhập Pane -->
+            <div class="tab-pane fade show active" id="login-pane" role="tabpanel">
+                <h5 class="fw-bold mb-1 text-dark">Chào mừng trở lại!</h5>
+                <p class="text-secondary mb-4" style="font-size: 14px;">Đăng nhập để tiếp tục trải nghiệm.</p>
+
+                <form action="/login" method="POST">
+                    {% call render_input_floating(name="username", label="TÊN ĐĂNG NHẬP", type="text", placeholder="Tên đăng nhập", icon_class="bi-person", required="required") %}{% endcall %}
+
+                    {% call render_input_floating(name="password", id="login-password", label="MẬT KHẨU", type="password", placeholder="Mật khẩu", icon_class="bi-lock", required="required") %}
+                        <button class="btn btn-light bg-transparent border-0 rounded-end-3 text-muted px-3" type="button" onclick="togglePassword('login-password')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    {% endcall %}
+                    
+                    {{ render_btn_submit("Đăng nhập", icon_class="bi-arrow-right") }}
+                </form>
+            </div>
+
+            <!-- Đăng ký Pane -->
+            <div class="tab-pane fade" id="register-pane" role="tabpanel">
+                <h5 class="fw-bold mb-1 text-dark">Tạo tài khoản mới</h5>
+                <p class="text-secondary mb-4" style="font-size: 14px;">Đăng ký để khám phá hàng ngàn khách sạn.</p>
+
+                <form action="/register" method="POST">
+                    {% call render_input_floating(name="username", label="TÊN ĐĂNG NHẬP", placeholder="Tên đăng nhập", icon_class="bi-person", required="required") %}{% endcall %}
+                    
+                    {% call render_input_floating(name="email", label="ĐỊA CHỈ EMAIL", type="email", placeholder="user@email.com", icon_class="bi-envelope", required="required") %}{% endcall %}
+
+                    {% call render_input_floating(name="password", id="register-password", label="MẬT KHẨU", type="password", placeholder="Tối thiểu " ~ min_len ~ " ký tự", icon_class="bi-lock", required="required", minlength=min_len, maxlength=max_len) %}
+                        <button class="btn btn-light bg-transparent border-0 rounded-end-3 text-muted px-3" type="button" onclick="togglePassword('register-password')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    {% endcall %}
+
+                    {% call render_input_floating(name="confirm_password", id="confirm-password", label="XÁC NHẬN MẬT KHẨU", type="password", placeholder="Xác nhận mật khẩu", icon_class="bi-lock", required="required", minlength=min_len, maxlength=max_len) %}
+                        <button class="btn btn-light bg-transparent border-0 rounded-end-3 text-muted px-3" type="button" onclick="togglePassword('confirm-password')">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    {% endcall %}
+
+                    {{ render_btn_submit("Tạo tài khoản", icon_class="bi-person-plus") }}
+                </form>
+            
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- Footer Tùy chỉnh của Login -->
+<div class="footer-text mt-auto text-center w-100">
+    © 2026 StayNow - Nền tảng đặt phòng khách sạn thông minh.
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+{% endblock %}

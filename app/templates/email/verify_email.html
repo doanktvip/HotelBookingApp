@@ -1,0 +1,18 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Xác thực tài khoản StayNow{% endblock %}
+
+{% block email_content %}
+<p>Xin chào,</p>
+<p>Cảm ơn bạn đã tin tưởng và đăng ký tài khoản tại <span class="text-bold">StayNow</span>. Để hoàn tất việc thiết lập tài khoản và đảm bảo tính bảo mật, vui lòng sử dụng mã xác thực (OTP) dưới đây:</p>
+
+<div style="text-align: center; margin: 45px 0;">
+    <div style="display: inline-block; padding: 25px 45px; background-color: #f0f7ff; border: 2px solid #0d6efd; color: #0d6efd; border-radius: 12px; font-size: 36px; font-weight: 800; letter-spacing: 12px;">
+        {{ otp_code }}
+    </div>
+    <p style="margin-top: 20px; font-size: 14px; color: #6b7280; font-style: italic;">Mã này chỉ có hiệu lực trong vòng {{g.otp_expiration_minutes}} phút.</p>
+</div>
+
+<p>Tuyệt đối <span class="text-bold">không chia sẻ</span> mã xác thực này với bất kỳ ai (kể cả nhân viên StayNow) để tránh rủi ro mất tài khoản.</p>
+<p>Nếu bạn không thực hiện yêu cầu này, xin vui lòng bỏ qua email.</p>
+{% endblock %}

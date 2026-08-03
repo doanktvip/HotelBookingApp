@@ -4,30 +4,66 @@
 {% block title %}Danh sách khách sạn{% endblock %}
 
 {% block content %}
-    <div class="container mt-5">
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h1 class="fw-bold">Danh Sách Khách Sạn</h1>
-                <p class="text-muted">Khám phá các khách sạn tuyệt đẹp của chúng tôi trên toàn thế giới.</p>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="row g-4">
-                    {% for hotel in hotels %}
-                    <div class="col-md-6 col-lg-4">
-                        <!-- Dùng Hotel Card Component đã tạo -->
-                        {{ ui.render_hotel_card(hotel, detail_url=url_for('hotel.hotel_detail', hotel_id=hotel.id)) }}
-                    </div>
-                    {% else %}
-                    <div class="col-12 text-center text-muted py-5">
-                        <p class="display-6">Không tìm thấy khách sạn nào</p>
-                        <p class="lead">Thử điều chỉnh tìm kiếm của bạn</p>
-                    </div>
-                    {% endfor %}
+{% call ui.render_page_body('Danh Sách Khách Sạn', 'Khám phá các khách sạn tuyệt đẹp của chúng tôi trên toàn thế giới.') %}
+    
+    <!-- Phần Top: Thanh Tìm Kiếm & Bộ Lọc -->
+    <div class="card border-0 shadow-sm mb-5" style="border-radius: 1rem;">
+        <div class="card-body p-4">
+            <form method="POST" action="{{ url_for('hotel.set_search_dates') }}" class="row g-3 align-items-end">
+                <!-- Tên / Địa điểm -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold text-secondary small mb-1"><i class="bi bi-search me-1"></i> Tên hoặc Địa điểm</label>
+                    <input type="text" name="name" class="form-control form-control-lg bg-light border-0" placeholder="Bạn muốn đi đâu?" value="{{ request.args.get('name', '') }}">
                 </div>
-            </div>
+                <!-- Hạng Sao -->
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold text-secondary small mb-1"><i class="bi bi-star-fill me-1 text-warning"></i> Hạng sao (Tối thiểu)</label>
+                    <select name="min_rating" class="form-select form-select-lg bg-light border-0">
+                        <option value="">Tất cả</option>
+                        <option value="5" {% if request.args.get('min_rating') == '5' %}selected{% endif %}>5 Sao</option>
+                        <option value="4" {% if request.args.get('min_rating') == '4' %}selected{% endif %}>Từ 4 Sao</option>
+                        <option value="3" {% if request.args.get('min_rating') == '3' %}selected{% endif %}>Từ 3 Sao</option>
+                    </select>
+                </div>
+                <!-- Nút Tìm Kiếm -->
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" style="border-radius: 0.75rem;">
+                        TÌM KIẾM
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+
+    <!-- Phần Bottom: Danh Sách Khách Sạn -->
+    <div class="row g-4 mb-5">
+        {% for hotel in hotels_pagination.items %}
+        <div class="col-md-6 col-lg-3">
+            {{ ui.render_hotel_card(hotel, detail_url=url_for('hotel.hotel_detail', hotel_id=hotel.id)) }}
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="mb-3">
+                <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
+            </div>
+            <h4 class="text-muted fw-bold">Không tìm thấy khách sạn nào</h4>
+            <p class="text-secondary">Vui lòng thử thay đổi điều kiện tìm kiếm hoặc xóa bộ lọc.</p>
+            <a href="{{ url_for('hotel.hotel') }}" class="btn btn-outline-primary rounded-pill px-4">Xóa bộ lọc</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Phân trang -->
+    {% if hotels_pagination.pages > 1 %}
+    <div class="d-flex justify-content-center">
+        {{ ui.render_pagination(hotels_pagination, 'hotel.hotel') }}
+    </div>
+    {% endif %}
+
+{% endcall %}
+{% endblock %}
+
+{% block scripts %}
+<!-- Nhúng Script để tính năng thu gọn Tags (JS) hoạt động -->
+<script src="{{ url_for('static', filename='js/hotel-card.js') }}"></script>
 {% endblock %}
