@@ -1,0 +1,33 @@
+{% import 'layout/macros.html' as ui %}
+
+{% if not success and error_msg %}
+<div class="alert alert-{{ flash_type|default('warning') }} mb-4" role="alert">
+    {{ error_msg }}
+</div>
+{% endif %}
+
+<div class="row g-4 mb-5 fade-in">
+    {% if hotels_pagination and hotels_pagination.items %}
+        {% for hotel in hotels_pagination.items %}
+        <div class="col-md-6 col-lg-3">
+            {{ ui.render_hotel_card(hotel, detail_url=url_for('hotel.hotel_detail', hotel_id=hotel.id)) }}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12 text-center py-5 fade-in">
+            <div class="mb-3">
+                <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
+            </div>
+            <h4 class="text-muted fw-bold">Không tìm thấy khách sạn nào</h4>
+            <p class="text-secondary">Vui lòng thử thay đổi điều kiện tìm kiếm hoặc xóa bộ lọc.</p>
+            <a href="{{ url_for('hotel.hotel') }}" class="btn btn-outline-primary rounded-pill px-4">Xóa bộ lọc</a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Phân trang -->
+{% if hotels_pagination and hotels_pagination.pages > 1 %}
+<div class="d-flex justify-content-center fade-in">
+    {{ ui.render_pagination(hotels_pagination, 'hotel.hotel') }}
+</div>
+{% endif %}

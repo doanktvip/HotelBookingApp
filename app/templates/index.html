@@ -41,55 +41,10 @@
             <div class="mx-auto" style="max-width: 950px;">
 
                 <!-- 1. TÌM KIẾM THEO BỘ LỌC -->
-                <form action="{{ url_for('search.search') }}" method="GET" class="bg-white rounded-pill p-2 shadow d-flex align-items-center text-start mb-4">
-                    <input type="hidden" name="mode" value="filter">
-
-                    <div class="flex-grow-1 border-end px-4 py-2">
-                        <label class="form-label small fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.75rem;"><i class="bi bi-geo-alt me-1"></i> ĐỊA ĐIỂM</label>
-                        <input type="text" name="location" class="form-control border-0 p-0 shadow-none fw-medium text-dark" placeholder="Bạn muốn đến đâu?">
-                    </div>
-
-                    <div class="flex-grow-1 border-end px-4 py-2">
-                        <label class="form-label small fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.75rem;"><i class="bi bi-calendar-event me-1"></i> NHẬN PHÒNG</label>
-                        <input type="date" name="check_in" class="form-control border-0 p-0 shadow-none fw-medium text-muted">
-                    </div>
-
-                    <div class="flex-grow-1 px-4 py-2">
-                        <label class="form-label small fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.75rem;"><i class="bi bi-calendar-event me-1"></i> TRẢ PHÒNG</label>
-                        <input type="date" name="check_out" class="form-control border-0 p-0 shadow-none fw-medium text-muted">
-                    </div>
-
-                    <div class="px-2">
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 py-3 fw-bold d-flex align-items-center" style="background-color: #2563eb; border: none;">
-                            <i class="bi bi-search me-2"></i> Tìm kiếm
-                        </button>
-                    </div>
-                </form>
+                {{ ui.render_search_filter_form() }}
 
                 <!-- 2. TÌM KIẾM NGỮ NGHĨA AI -->
-                <div class="bg-white rounded-4 shadow p-4 text-start mt-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="rounded-circle d-flex justify-content-center align-items-center text-white"
-                             style="width: 44px; height: 44px; background-color: #6366f1;">
-                            <i class="bi bi-stars fs-5"></i>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="mb-0 fw-bold text-dark">Tìm kiếm ngữ nghĩa AI</h6>
-                            <small class="text-muted">Mô tả kỳ nghỉ lý tưởng bằng ngôn ngữ tự nhiên — AI hiểu ý bạn</small>
-                        </div>
-                    </div>
-
-                    <form action="{{ url_for('search.search') }}" method="GET" class="d-flex align-items-center bg-light rounded-pill p-2 border">
-                        <input type="hidden" name="mode" value="keyword">
-                        <div class="px-3 text-muted"><i class="bi bi-stars"></i></div>
-                        <input type="text" name="q" class="form-control border-0 bg-transparent shadow-none"
-                               placeholder='Thử: "Khách sạn ven biển dưới 4tr, hồ bơi, spa, cuối tuần tháng 8"'>
-                        <button type="submit" class="btn text-white rounded-pill px-4 py-2 fw-bold d-flex align-items-center"
-                                style="background-color: #8b5cf6; border: none;">
-                            <i class="bi bi-stars me-2"></i> Hỏi AI
-                        </button>
-                    </form>
-                </div>
+                {{ ui.render_semantic_ai_search_form() }}
 
             </div>
         </div>
@@ -101,78 +56,25 @@
             <div class="text-primary text-uppercase fw-bold small">Gợi ý thông minh cho bạn</div>
             <h2 class="fw-bold mb-0">Phù hợp với ngân sách &amp; lịch sử của bạn</h2>
         </div>
-        <a href="{{ url_for('search.search') }}" class="text-primary fw-semibold text-decoration-none">Xem tất cả →</a>
+        <a href="{{ url_for('hotel.hotel') }}" class="text-primary fw-semibold text-decoration-none">Xem tất cả →</a>
     </div>
 
-    {% if recommended_hotels %}
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-        {% for hotel in recommended_hotels %}
-        {% set match_percent = [99, ((hotel.rating or 0) / 5 * 100 + 15)|round|int] | min %}
-        <div class="col">
-            <div class="card h-100 border-0 shadow-sm custom-hotel-card">
-                <div class="position-relative">
-                    <div class="ratio ratio-4x3">
-                        {% if hotel.image_url %}
-                        <img src="{{ hotel.image_url }}" class="object-fit-cover rounded-top-2" alt="{{ hotel.name }}">
-                        {% else %}
-                        <div class="bg-secondary-subtle d-flex align-items-center justify-content-center rounded-top-2">
-                            <i class="bi bi-image text-secondary fs-1"></i>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <span class="badge bg-primary position-absolute top-0 start-0 m-2 shadow">
-                        <i class="bi bi-stars"></i> {{ match_percent }}% Phù hợp
-                    </span>
-                    {% if loop.first %}
-                    <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-2 shadow">
-                        <i class="bi bi-award"></i> Nổi bật
-                    </span>
-                    {% endif %}
-                    <span class="badge bg-dark bg-opacity-75 position-absolute bottom-0 start-0 m-2">
-                        <i class="bi bi-star-fill text-warning"></i> {{ '%.1f'|format(hotel.rating or 0) }}
-                    </span>
-                    <span class="badge bg-dark bg-opacity-75 position-absolute bottom-0 end-0 m-2">
-                        {{ hotel.location }}
-                    </span>
-                </div>
-                <div class="card-body d-flex flex-column">
-                    <h5 class="card-title fw-bold text-truncate">{{ hotel.name }}</h5>
-                    <p class="card-text text-muted small mb-3">
-                        {{ hotel.description|truncate(85, True, '…') if hotel.description else hotel.address }}
-                    </p>
-                    {% if hotel.tags %}
-                    <div class="mb-3 d-flex flex-wrap gap-1">
-                        {% for tag in hotel.tags[:3] %}
-                        <span class="badge rounded-pill" style="background-color: #f0f7ff; color: #0d6efd; font-weight: 500;">{{ tag.name }}</span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                    <div class="mt-auto d-flex justify-content-between align-items-center pt-3 border-top">
-                        <span class="text-primary fw-bold fs-5">
-                            từ {{ '{:,.0f}'.format(hotel.min_price)|replace(',', '.') }}<span class="fs-6">đ</span>
-                            <small class="text-muted fw-normal fs-6">/đêm</small>
-                        </span>
-                        <a href="{{ url_for('hotel.hotel_detail', hotel_id=hotel.id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
-                            Xem ngay
-                        </a>
-                    </div>
-                </div>
+    <div id="ai-recommendations-container" class="position-relative" style="min-height: 250px;">
+        <!-- Khung Loading cực đẹp -->
+        <div id="ai-loading-spinner" class="d-flex flex-column justify-content-center align-items-center h-100 position-absolute w-100" style="background: rgba(255,255,255,0.8); z-index: 10;">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
             </div>
+            <p class="mt-3 fw-semibold text-primary" style="animation: pulse 1.5s infinite;">
+                <i class="bi bi-robot me-2"></i>AI đang phân tích sở thích để tìm gợi ý tốt nhất cho bạn...
+            </p>
         </div>
-        {% endfor %}
     </div>
-    {% else %}
-    <div class="text-center text-muted py-5">
-        <p class="display-6">Chưa có gợi ý nào</p>
-        <p>Hãy thử tìm kiếm để hệ thống hiểu sở thích của bạn hơn</p>
-    </div>
-    {% endif %}
 
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/socket_client.js') }}"></script>
-<script src="{{ url_for('static', filename='js/hotel-card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/hotel_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/date_sync.js') }}"></script>
 {% endblock %}

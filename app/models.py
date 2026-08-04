@@ -283,7 +283,7 @@ class SearchHistory(db.Model):
     id = Column(Integer, primary_key=True)  # ID dòng lịch sử
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # Khách hàng nào tìm (Nếu chưa đăng nhập thì null)
     search_query = Column(Text, nullable=True)  # Câu truy vấn tự nhiên
-    location = Column(String(100), nullable=True)  # Địa điểm trích xuất được
+    parsed_data = Column(db.JSON, nullable=True) # Dữ liệu đã parse từ câu truy vấn
     searched_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời điểm tìm kiếm
 
 class PriceHistory(db.Model):

@@ -59,4 +59,4 @@ def register_error_handlers(app):
 def register_hooks(app):
     app.before_request(load_global_variables)
     app.before_request(check_maintenance_mode)
-    register_error_handlers(app)
+    # register_error_handlers(app)

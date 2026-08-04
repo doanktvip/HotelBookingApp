@@ -1,207 +1,124 @@
-from datetime import datetime
-from sqlalchemy import func
-from app.extensions import db
-from app.models import (
-    Hotel, RoomType, Room, Tag,
-    Booking, BookingDetail, BookingStatus, SearchHistory,
-)
+from sqlalchemy import func, exists,Float,case
+from app.models import Hotel, RoomType, SearchHistory, hotel_tags
+from app.services import BaseService
+from app.services.ai_service import AIService
+from app.services.hotel_service import HotelService
 
-
-class _SimplePagination:
-
-    def __init__(self, items, page, per_page, total):
-        self.items = items
-        self.page = page
-        self.per_page = per_page
-        self.total = total
-        self.pages = max(1, (total + per_page - 1) // per_page)
-        self.has_prev = page > 1
-        self.has_next = page < self.pages
-        self.prev_num = page - 1
-        self.next_num = page + 1
-
-    def iter_pages(self, *args, **kwargs):
-        for i in range(1, self.pages + 1):
-            yield i
-
-
-class SearchService:
-
-    PER_PAGE = 9
-
-    # ================= 1. TÌM KIẾM THEO BỘ LỌC =================
-    def search_by_filter(self, filters, page=1):
-        query = (
-            RoomType.query
-            .join(Hotel, RoomType.hotel_id == Hotel.id)
-            .filter(RoomType.is_active == True)
-        )
-
-        if filters.get('location'):
-            query = query.filter(Hotel.location.ilike(f"%{filters['location']}%"))
-
-        if filters.get('min_price'):
-            query = query.filter(RoomType.base_price >= filters['min_price'])
-
-        if filters.get('max_price'):
-            query = query.filter(RoomType.base_price <= filters['max_price'])
-
-        if filters.get('capacity'):
-            query = query.filter(RoomType.max_occupancy >= filters['capacity'])
-
-        if filters.get('rating_min'):
-            query = query.filter(Hotel.rating >= filters['rating_min'])
-
-        for tag_id in filters.get('tag_ids') or []:
-            query = query.filter(Hotel.tags.any(Tag.id == tag_id))
-
-        # Lọc theo tình trạng còn phòng trống trong khoảng ngày (nếu có chọn ngày)
-        check_in, check_out = filters.get('check_in'), filters.get('check_out')
-        ci = co = None
-        if check_in and check_out:
-            try:
-                ci = datetime.strptime(check_in, '%Y-%m-%d').date()
-                co = datetime.strptime(check_out, '%Y-%m-%d').date()
-            except ValueError:
-                ci = co = None
-
-        if ci and co and co > ci:
-            overlapping_room_ids = (
-                db.session.query(BookingDetail.room_id)
-                .join(Booking, Booking.id == BookingDetail.booking_id)
-                .filter(
-                    Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-                    Booking.check_in < co,
-                    Booking.check_out > ci,
-                )
-            )
-            room_available = Room.query.filter(
-                Room.room_type_id == RoomType.id,
-                Room.is_active == True,
-                Room.id.notin_(overlapping_room_ids),
-            ).exists()
-            query = query.filter(room_available)
-        else:
-            # Không chọn ngày -> chỉ cần loại phòng có ít nhất 1 phòng vật lý đang hoạt động
-            room_exists = Room.query.filter(
-                Room.room_type_id == RoomType.id, Room.is_active == True
-            ).exists()
-            query = query.filter(room_exists)
-
-        sort_by = filters.get('sort_by', 'rating_desc')
-        if sort_by == 'price_asc':
-            query = query.order_by(RoomType.base_price.asc())
-        elif sort_by == 'price_desc':
-            query = query.order_by(RoomType.base_price.desc())
-        else:
-            query = query.order_by(Hotel.rating.desc(), RoomType.base_price.asc())
-
-        return query.paginate(page=page, per_page=self.PER_PAGE, error_out=False)
-
-    # ================= 2. TÌM KIẾM THEO TỪ KHOÁ / NGỮ NGHĨA =================
-    def search_by_keyword(self, keyword, page=1, user=None):
-        tokens = [t for t in keyword.lower().split() if len(t) > 1]
-
-        known_locations = [row[0] for row in db.session.query(Hotel.location).distinct()]
-        matched_location = next(
-            (loc for loc in known_locations if loc.lower() in keyword.lower()), None
-        )
-
-        # Lưu lại lịch sử tìm kiếm (phục vụ gợi ý thông minh sau này)
+class SearchService(BaseService):
+    
+    def semantic_search(self, keyword, user=None, per_page=8):
+        ai_service = AIService(self.db)
+        hotel_service = HotelService(self.db)
+        
         try:
-            db.session.add(SearchHistory(
-                user_id=user.id if user else None,
-                search_query=keyword,
-                location=matched_location,
-            ))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+            parsed_filters = ai_service.parse_search_query(keyword)
+            if parsed_filters:
+                # Chỉ lưu vào Database nếu AI trích xuất được ít nhất 1 dữ liệu có ích (khác null, rỗng, list rỗng)
+                has_useful_data = any(v is not None and v != "" and v != [] for v in parsed_filters.values())
+                if has_useful_data:
+                    ai_service.save_search_history(keyword, parsed_filters, user.id if user else None)
+                
+                hotels_pagination = hotel_service.get_hotels(
+                    location=parsed_filters.get('location'),
+                    name=parsed_filters.get('name'),
+                    min_rating=parsed_filters.get('min_rating'),
+                    min_price=parsed_filters.get('min_price'),
+                    max_price=parsed_filters.get('max_price'),
+                    capacity=parsed_filters.get('capacity'),
+                    bed_count=parsed_filters.get('bed_count'),
+                    check_in=parsed_filters.get('check_in'),
+                    check_out=parsed_filters.get('check_out'),
+                    tag_ids=parsed_filters.get('tag_ids'),
+                    sort_by=parsed_filters.get('sort_by', 'rating_desc'),
+                    per_page=per_page
+                )
+                return hotels_pagination, True, None, ''
+            else:
+                return hotel_service.get_hotels(per_page=per_page), False, "AI không thể nhận diện được yêu cầu của bạn. Vui lòng thử lại bằng câu khác.", 'warning'
+        except Exception as e:
+            print("AI Error:", e)
+            return hotel_service.get_hotels(per_page=per_page), False, "Hệ thống AI đang quá tải hoặc chưa được cấu hình. Vui lòng thử lại sau.", 'danger'
 
-        # Với dữ liệu nhỏ, load hết rồi chấm điểm bằng Python.
-        # Nếu dữ liệu lớn hơn, nên chuyển sang MySQL FULLTEXT INDEX hoặc Elasticsearch.
-        room_types = (
-            RoomType.query.join(Hotel).filter(RoomType.is_active == True).all()
-        )
-
-        scored = []
-        for rt in room_types:
-            haystack = ' '.join(filter(None, [
-                rt.hotel.name, rt.hotel.address, rt.hotel.location, rt.hotel.description,
-                rt.name, rt.description, rt.bed_type,
-                ' '.join(t.name for t in rt.hotel.tags),
-            ])).lower()
-
-            score = sum(haystack.count(tok) for tok in tokens)
-            if matched_location and matched_location.lower() in rt.hotel.location.lower():
-                score += 5
-
-            if score > 0:
-                scored.append((score, rt))
-
-        scored.sort(key=lambda pair: (pair[0], pair[1].hotel.rating or 0), reverse=True)
-        ranked = [rt for _, rt in scored]
-
-        start = (page - 1) * self.PER_PAGE
-        page_items = ranked[start:start + self.PER_PAGE]
-        return _SimplePagination(page_items, page, self.PER_PAGE, len(ranked))
-
-    # ================= 3. GỢI Ý KHÁCH SẠN & LOẠI PHÒNG =================
     def get_recommended_hotels(self, user=None, limit=4):
-        preferred_location = None
+        has_active_room = exists().where(RoomType.hotel_id == Hotel.id).where(RoomType.is_active == True)
+        query = self.db.query(Hotel).filter(has_active_room)
+        
+        score_expr = func.coalesce(Hotel.rating, 0.0)
+        
         if user:
-            recent = (
+            recent_searches = (
                 SearchHistory.query
-                .filter(SearchHistory.user_id == user.id, SearchHistory.location.isnot(None))
+                .filter(SearchHistory.user_id == user.id, SearchHistory.parsed_data != None)
                 .order_by(SearchHistory.searched_at.desc())
-                .limit(5).all()
+                .limit(10).all()
             )
-            if recent:
-                locations = [h.location for h in recent]
-                preferred_location = max(set(locations), key=locations.count)
-
-        hotels = []
-        if preferred_location:
-            hotels = (
-                Hotel.query.filter(Hotel.location == preferred_location)
-                .order_by(Hotel.rating.desc()).limit(limit).all()
+            # Nếu khách đăng nhập chưa từng tìm kiếm gì, lấy xu hướng chung của khách vãng lai
+            if not recent_searches:
+                recent_searches = (
+                    SearchHistory.query
+                    .filter(SearchHistory.parsed_data != None)
+                    .order_by(SearchHistory.searched_at.desc())
+                    .limit(30).all()
+                )
+        else:
+            recent_searches = (
+                SearchHistory.query
+                .filter(SearchHistory.parsed_data != None)
+                .order_by(SearchHistory.searched_at.desc())
+                .limit(30).all()
             )
+            
+        preferred_locations = []
+        preferred_tag_ids = []
+        
+        valid_recent_searches = []
+        
+        for search in recent_searches:
+            data = search.parsed_data
+            if not isinstance(data, dict):
+                continue
+                
+            # Loại bỏ những tìm kiếm vô nghĩa (toàn null, chuỗi rỗng, hoặc danh sách rỗng)
+            has_useful_data = any(v is not None and v != "" and v != [] for v in data.values())
+            if not has_useful_data:
+                continue
+                
+            valid_recent_searches.append(search)
 
-        if len(hotels) < limit:
-            for h in Hotel.query.order_by(Hotel.rating.desc()).limit(limit * 2).all():
-                if h not in hotels:
-                    hotels.append(h)
-                if len(hotels) >= limit:
-                    break
+                
+            loc = data.get('location')
+            if loc:
+                preferred_locations.append(loc.lower())
+                
+            tags = data.get('tag_ids')
+            if isinstance(tags, list):
+                preferred_tag_ids.extend(tags)
 
-        return hotels[:limit]
-
-    def get_recommended_room_types(self, limit=4):
-        popular = (
-            db.session.query(RoomType, func.count(BookingDetail.id).label('cnt'))
-            .join(Room, Room.room_type_id == RoomType.id)
-            .join(BookingDetail, BookingDetail.room_id == Room.id)
-            .filter(RoomType.is_active == True)
-            .group_by(RoomType.id)
-            .order_by(func.count(BookingDetail.id).desc())
-            .limit(limit).all()
-        )
-        room_types = [rt for rt, _ in popular]
-
-        if len(room_types) < limit:
-            fallback = (
-                RoomType.query.join(Hotel)
-                .filter(RoomType.is_active == True)
-                .order_by(Hotel.rating.desc())
-                .limit(limit * 2).all()
+        if preferred_locations:
+            loc_case = case(
+                (func.lower(Hotel.location).in_(preferred_locations), 5.0),
+                else_=0.0
             )
-            for rt in fallback:
-                if rt not in room_types:
-                    room_types.append(rt)
-                if len(room_types) >= limit:
-                    break
+            score_expr = score_expr + loc_case
+            
+        if preferred_tag_ids:
+            tag_count_subq = (
+                self.db.query(func.count(hotel_tags.c.tag_id))
+                .filter(hotel_tags.c.hotel_id == Hotel.id)
+                .filter(hotel_tags.c.tag_id.in_(preferred_tag_ids))
+                .correlate(Hotel)
+                .scalar_subquery()
+            )
+            score_expr = score_expr + func.cast(tag_count_subq, Float)
+                
+        query = query.order_by(score_expr.desc(), Hotel.rating.desc())
+        
+        # Giai đoạn 1: Lấy 20 Candidates bằng SQL
+        candidates = self.get_limit(query, limit=20)
+        
+        # Giai đoạn 2: Lọc tinh bằng AI (truyền vào danh sách lịch sử đã được làm sạch)
+        ai_service = AIService(self.db)
+        final_hotels = ai_service.get_ai_recommendations(user, candidates, valid_recent_searches, limit)
+        
+        return final_hotels
 
-        return room_types[:limit]
-
-    def get_all_tags(self):
-        return Tag.query.order_by(Tag.name).all()

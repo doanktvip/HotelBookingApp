@@ -23,7 +23,7 @@
 </div>
 {% endmacro %}
 
-<!-- 2. Room Card đã sửa xong -->
+<!-- 2. Room type Card đã sửa xong -->
 {% macro render_room_type_card(room_type, available_count=None, check_in_date='', check_out_date='') %}
 {% if available_count is none %}
     {% set available_count = room_type.rooms|selectattr("status.name", "equalto", "AVAILABLE")|list|length %}
@@ -117,24 +117,14 @@
 </div>
 {% endmacro %}
 
-
-<!-- 6. Button Component chưa sửa xong -->
-{% macro render_button(text, style='primary', type='button', size='', extra_classes='', attrs='') %}
-<button type="{{ type }}" class="btn btn-{{ style }}{% if size %} btn-{{ size }}{% endif %} {{ extra_classes }}" {{
-        attrs|safe }}>
-    {{ text }}
-</button>
-{% endmacro %}
-
-
 <!-- 7. Pagination Component -->
 {% macro render_pagination(pagination, endpoint) %}
 {% if pagination and pagination.pages > 1 %}
-<nav aria-label="Điều hướng phân trang">
-    <ul class="pagination justify-content-center">
+<nav aria-label="Điều hướng phân trang" class="my-4">
+    <ul class="pagination justify-content-center align-items-center gap-2 m-0">
         <!-- Nút Trở Về Trước -->
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-            <a class="page-link"
+            <a class="page-link rounded-pill border-0 shadow-sm px-3 fw-medium"
                href="{{ url_for(endpoint, page=pagination.prev_num, **kwargs) if pagination.has_prev else '#' }}">
                 &laquo; Trước
             </a>
@@ -144,16 +134,20 @@
         {% for page in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
         {% if page %}
         <li class="page-item {% if page == pagination.page %}active{% endif %}">
-            <a class="page-link" href="{{ url_for(endpoint, page=page, **kwargs) }}">{{ page }}</a>
+            <a class="page-link rounded-circle border-0 shadow-sm d-flex align-items-center justify-content-center fw-medium" 
+               style="width: 40px; height: 40px;"
+               href="{{ url_for(endpoint, page=page, **kwargs) }}">{{ page }}</a>
         </li>
         {% else %}
-        <li class="page-item disabled"><span class="page-link">...</span></li>
+        <li class="page-item disabled">
+            <span class="page-link border-0 bg-transparent text-muted fw-bold d-flex align-items-end justify-content-center pb-2" style="width: 40px; height: 40px;">...</span>
+        </li>
         {% endif %}
         {% endfor %}
 
         <!-- Nút Tới Trang Sau -->
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-            <a class="page-link"
+            <a class="page-link rounded-pill border-0 shadow-sm px-3 fw-medium"
                href="{{ url_for(endpoint, page=pagination.next_num, **kwargs) if pagination.has_next else '#' }}">
                 Sau &raquo;
             </a>
@@ -164,13 +158,25 @@
 {% endmacro %}
 
 <!-- 8. Hotel Card đã sửa xong-->
-{% macro render_hotel_card(hotel, detail_url='#') %}
-<a href="{{ detail_url }}" class="card h-100 border-0 custom-hotel-card text-decoration-none text-dark">
+{% macro render_hotel_card(hotel, detail_url='#', match_percent=None, is_featured=False) %}
+<a href="{{ detail_url }}" class="card h-100 border-0 custom-hotel-card text-decoration-none text-dark shadow-sm">
     <!-- Hình ảnh -->
     <div style="position: relative; padding-top: 65%; overflow: hidden;">
         {% set optimized_img = hotel.image_url|replace('upload/', 'upload/w_600,c_fill,q_auto,f_auto/') if hotel.image_url else url_for('static', filename='image/default_hotel.png') %}
         <img src="{{ optimized_img }}" class="position-absolute top-0 start-0 w-100 h-100"
              alt="{{ hotel.name }}" style="object-fit: cover;">
+        
+        {% if match_percent %}
+        <span class="badge bg-primary position-absolute top-0 start-0 m-2 shadow">
+            <i class="bi bi-stars"></i> {{ match_percent }}% Phù hợp
+        </span>
+        {% endif %}
+        
+        {% if is_featured %}
+        <span class="badge bg-warning text-dark position-absolute top-0 end-0 m-2 shadow">
+            <i class="bi bi-award"></i> Nổi bật
+        </span>
+        {% endif %}
     </div>
     
     <!-- Nội dung -->
@@ -358,4 +364,72 @@
 {% if help_text %}
 <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> {{ help_text }}</div>
 {% endif %}
+{% endmacro %}
+
+<!-- 18. Search Filter Form -->
+{% macro render_search_filter_form() %}
+<form action="{{ url_for('hotel.hotel') }}" method="GET" class="bg-white rounded-pill p-2 shadow d-flex align-items-center text-start mb-4 border">
+
+    <!-- ĐỊA ĐIỂM -->
+    <div class="flex-grow-1 d-flex align-items-center border-end px-3 py-1">
+        <div class="me-3 fs-5 text-primary">
+            <i class="bi bi-geo-alt"></i>
+        </div>
+        <div class="flex-grow-1">
+            <label class="form-label fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">ĐỊA ĐIỂM</label>
+            <input type="text" name="location" class="form-control border-0 p-0 shadow-none fw-medium text-dark bg-transparent" style="font-size: 0.95rem;" placeholder="Bạn muốn đến đâu?" value="{{ request.args.get('location', '') }}">
+        </div>
+    </div>
+
+    <!-- NHẬN PHÒNG -->
+    <div class="flex-grow-1 d-flex align-items-center border-end px-3 py-1">
+        <div class="me-3 fs-5 text-primary">
+            <i class="bi bi-calendar-event"></i>
+        </div>
+        <div class="flex-grow-1">
+            <label class="form-label fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">NHẬN PHÒNG</label>
+            <input type="date" name="check_in" class="form-control border-0 p-0 shadow-none fw-medium text-muted bg-transparent custom-date-input" style="font-size: 0.95rem;" onclick="this.showPicker()" value="{{ request.args.get('check_in', '') }}">
+        </div>
+    </div>
+
+    <!-- TRẢ PHÒNG -->
+    <div class="flex-grow-1 d-flex align-items-center px-3 py-1">
+        <div class="me-3 fs-5 text-primary">
+            <i class="bi bi-calendar-event"></i>
+        </div>
+        <div class="flex-grow-1">
+            <label class="form-label fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">TRẢ PHÒNG</label>
+            <input type="date" name="check_out" class="form-control border-0 p-0 shadow-none fw-medium text-muted bg-transparent custom-date-input" style="font-size: 0.95rem;" onclick="this.showPicker()" value="{{ request.args.get('check_out', '') }}">
+        </div>
+    </div>
+
+    <!-- Nút Tìm kiếm -->
+    <div class="px-2">
+        {{ render_btn_submit('Tìm kiếm', style='primary', icon_class='bi bi-search', btn_class='px-4 mb-0 text-nowrap flex-shrink-0') }}
+    </div>
+</form>
+{% endmacro %}
+
+<!-- 19. Semantic AI Search Form -->
+{% macro render_semantic_ai_search_form() %}
+<div class="bg-white rounded-4 shadow p-4 text-start mt-4 border">
+    <div class="d-flex align-items-center mb-4">
+        <div class="rounded-circle d-flex justify-content-center align-items-center text-white bg-primary shadow-sm"
+             style="width: 48px; height: 48px;">
+            <i class="bi bi-stars fs-5"></i>
+        </div>
+        <div class="ms-3">
+            <h6 class="mb-0 fw-bold text-dark" style="font-size: 1.1rem;">Tìm kiếm ngữ nghĩa AI</h6>
+            <small class="text-muted" style="font-size: 0.9rem;">Mô tả kỳ nghỉ lý tưởng bằng ngôn ngữ tự nhiên — AI hiểu ý bạn</small>
+        </div>
+    </div>
+
+    <form action="{{ url_for('hotel.hotel') }}" method="GET" class="d-flex align-items-center rounded-pill p-2 mb-3 bg-light border" onsubmit="showAILoading(this)">
+        <div class="px-3 text-primary"><i class="bi bi-stars fs-5"></i></div>
+        <input type="text" name="keyword" class="form-control border-0 bg-transparent shadow-none text-dark fw-medium"
+               placeholder='Thử: "Khách sạn ven biển dưới 4tr, hồ bơi, spa, cuối tuần tháng 8"' style="font-size: 0.95rem;"
+               value="{{ request.args.get('keyword', '') }}" required>
+        {{ render_btn_submit('Hỏi AI', style='primary', icon_class='bi bi-stars', btn_class='px-4 mb-0 text-nowrap flex-shrink-0 ai-submit-btn') }}
+    </form>
+</div>
 {% endmacro %}
