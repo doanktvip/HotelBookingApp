@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, render_template, request, jsonify, session, url_for
+from flask import Blueprint, redirect, render_template, request, jsonify, session, url_for, flash
 from app.services import HotelService, BookingService
 from app.extensions import db
 from app.utils import get_vn_time
@@ -7,11 +7,58 @@ from urllib.parse import urlparse
 hotel_bp = Blueprint('hotel', __name__)
 
 
+from flask_login import current_user
+from app.services.hotel_service import HotelService
+from app.services.search_service import SearchService
+
 @hotel_bp.route('/hotels')
 def hotel():
     hotel_service = HotelService(db.session)
-    hotels_pagination = hotel_service.get_hotels(per_page=8)
-    return render_template('hotel.html', hotels_pagination=hotels_pagination)
+    
+    keyword = request.args.get('keyword', '').strip()
+    async_keyword = None
+    
+    if keyword:
+        # Thay vì chạy AI đồng bộ gây treo trang, ta đánh dấu biến cờ để giao diện tải trước rồi mới gọi API ngầm
+        async_keyword = keyword
+        hotels_pagination = None
+
+    else:
+        hotels_pagination = hotel_service.get_hotels(
+            location=request.args.get('location', '').strip(),
+            check_in=request.args.get('check_in', '').strip(),
+            check_out=request.args.get('check_out', '').strip(),
+            min_price=request.args.get('min_price', type=float),
+            max_price=request.args.get('max_price', type=float),
+            tag_ids=request.args.getlist('tags', type=int),
+            sort_by=request.args.get('sort_by', 'rating_desc'),
+            per_page=8
+        )
+
+    
+    all_tags = hotel_service.get_all_tags()
+    
+    return render_template('hotel.html', hotels_pagination=hotels_pagination, all_tags=all_tags, async_keyword=async_keyword)
+
+@hotel_bp.route('/api/search')
+def api_search():
+    keyword = request.args.get('keyword', '').strip()
+    if not keyword:
+        return jsonify({"error": "Missing keyword"}), 400
+        
+    search_service = SearchService(db.session)
+    hotels_pagination, success, error_msg, flash_type = search_service.semantic_search(
+        keyword, 
+        user=current_user if current_user.is_authenticated else None,
+        per_page=8
+    )
+    
+    # Trả về partial HTML (không render lại toàn trang)
+    return render_template('partials/hotel_list.html', 
+                           hotels_pagination=hotels_pagination, 
+                           success=success, 
+                           error_msg=error_msg, 
+                           flash_type=flash_type)
 
 @hotel_bp.route('/hotels/<int:hotel_id>')
 def hotel_detail(hotel_id):

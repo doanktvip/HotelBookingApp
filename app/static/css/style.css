@@ -129,3 +129,16 @@ header{
     box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075) !important; /* Bóng nhẹ */
     opacity: 1;
 }
+
+/* Hide default calendar icon in date inputs */
+.custom-date-input::-webkit-calendar-picker-indicator {
+    display: none;
+    -webkit-appearance: none;
+}
+
+/* AI Loading Pulse Animation */
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}

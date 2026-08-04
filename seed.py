@@ -502,8 +502,8 @@ def seed_other_tables(created_hotels):
             
             search = SearchHistory(
                 user_id=customer.id,
-                search_query=random.choice(["Khách sạn view biển", "Khách sạn trung tâm Sài Gòn", "Resort 5 sao"]),
-                location=random.choice(["Hồ Chí Minh", "Vũng Tàu", "Đà Nẵng"])
+                search_query="Khách sạn trung tâm Sài Gòn",
+                parsed_data={"location": "Hồ Chí Minh"}
             )
             db.session.add(search)
 

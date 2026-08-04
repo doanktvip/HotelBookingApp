@@ -1,0 +1,32 @@
+{% import 'layout/macros.html' as ui %}
+
+{% if recommended_hotels %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 fade-in">
+    {% for hotel in recommended_hotels %}
+    {% set match_percent = hotel.match_score|default(80) %}
+    <div class="col">
+        {{ ui.render_hotel_card(
+            hotel=hotel, 
+            detail_url=url_for('hotel.hotel_detail', hotel_id=hotel.id),
+            match_percent=match_percent,
+            is_featured=loop.first
+        ) }}
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% else %}
+<div class="text-center text-muted py-5 fade-in">
+    <p class="display-6">Chưa có gợi ý nào</p>
+    <p>Hãy thử tìm kiếm để hệ thống hiểu sở thích của bạn hơn</p>
+</div>
+{% endif %}

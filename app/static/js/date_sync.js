@@ -1,9 +1,14 @@
 // date_sync.js - Dùng chung cho mọi form có check_in và check_out
 document.addEventListener('DOMContentLoaded', function() {
-    const checkInInput = document.getElementById('check_in');
-    const checkOutInput = document.getElementById('check_out');
+    const checkInInputs = document.querySelectorAll('input[name="check_in"]');
+    
+    checkInInputs.forEach(checkInInput => {
+        const form = checkInInput.closest('form');
+        if (!form) return;
+        
+        const checkOutInput = form.querySelector('input[name="check_out"]');
+        if (!checkOutInput) return;
 
-    if (checkInInput && checkOutInput) {
         // Thiết lập min cho check_in là hôm nay (nếu chưa có)
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -34,17 +39,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const currentCheckOut = new Date(checkOutInput.value);
             if (isNaN(currentCheckOut) || currentCheckOut <= checkInDate) {
                 checkOutInput.value = minCheckOutStr;
-                // Kích hoạt sự kiện change để các script khác (nếu có) nhận biết
                 checkOutInput.dispatchEvent(new Event('change'));
             }
         }
 
-        // Lắng nghe sự kiện change
         checkInInput.addEventListener('change', updateCheckOutMin);
         
-        // Cập nhật ngay lúc load trang (nếu check_in đã có giá trị sẵn)
+        // Nếu chưa có giá trị, tự động điền ngày hôm nay
+        if (!checkInInput.value) {
+            checkInInput.value = todayStr;
+        }
+        
+        // Cập nhật check_out
         if (checkInInput.value) {
             updateCheckOutMin();
         }
-    }
+    });
 });

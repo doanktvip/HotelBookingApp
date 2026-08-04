@@ -7,63 +7,156 @@
 {% call ui.render_page_body('Danh Sách Khách Sạn', 'Khám phá các khách sạn tuyệt đẹp của chúng tôi trên toàn thế giới.') %}
     
     <!-- Phần Top: Thanh Tìm Kiếm & Bộ Lọc -->
-    <div class="card border-0 shadow-sm mb-5" style="border-radius: 1rem;">
-        <div class="card-body p-4">
-            <form method="POST" action="{{ url_for('hotel.set_search_dates') }}" class="row g-3 align-items-end">
-                <!-- Tên / Địa điểm -->
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-secondary small mb-1"><i class="bi bi-search me-1"></i> Tên hoặc Địa điểm</label>
-                    <input type="text" name="name" class="form-control form-control-lg bg-light border-0" placeholder="Bạn muốn đi đâu?" value="{{ request.args.get('name', '') }}">
+    <div class="mb-5">
+        <form action="{{ url_for('hotel.hotel') }}" method="GET" class="bg-white rounded-4 p-3 shadow-sm text-start mb-4 border">
+
+            <!-- TOP ROW (Basic) -->
+            <div class="d-flex flex-wrap align-items-center border rounded-pill p-2 mb-3 bg-white">
+                <!-- ĐỊA ĐIỂM -->
+                <div class="flex-grow-1 d-flex align-items-center border-end px-3 py-1">
+                    <div class="me-3 fs-5 text-primary"><i class="bi bi-geo-alt"></i></div>
+                    <div class="flex-grow-1">
+                        <label class="form-label fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.7rem;">ĐỊA ĐIỂM</label>
+                        <input type="text" name="location" class="form-control border-0 p-0 shadow-none fw-medium text-dark bg-transparent" style="font-size: 0.95rem;" placeholder="Bạn muốn đến đâu?" value="{{ request.args.get('location', '') }}">
+                    </div>
                 </div>
-                <!-- Hạng Sao -->
+
+                <!-- NHẬN PHÒNG -->
+                <div class="flex-grow-1 d-flex align-items-center border-end px-3 py-1">
+                    <div class="me-3 fs-5 text-primary"><i class="bi bi-calendar-event"></i></div>
+                    <div class="flex-grow-1">
+                        <label class="form-label fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.7rem;">NHẬN PHÒNG</label>
+                        <input type="date" name="check_in" class="form-control border-0 p-0 shadow-none fw-medium text-muted bg-transparent custom-date-input" style="font-size: 0.95rem;" onclick="this.showPicker()" value="{{ request.args.get('check_in', '') }}">
+                    </div>
+                </div>
+
+                <!-- TRẢ PHÒNG -->
+                <div class="flex-grow-1 d-flex align-items-center px-3 py-1">
+                    <div class="me-3 fs-5 text-primary"><i class="bi bi-calendar-event"></i></div>
+                    <div class="flex-grow-1">
+                        <label class="form-label fw-bold text-muted mb-0 d-block text-uppercase" style="font-size: 0.7rem;">TRẢ PHÒNG</label>
+                        <input type="date" name="check_out" class="form-control border-0 p-0 shadow-none fw-medium text-muted bg-transparent custom-date-input" style="font-size: 0.95rem;" onclick="this.showPicker()" value="{{ request.args.get('check_out', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTTOM ROW (Advanced) -->
+            <div class="row g-4 px-2 mt-2">
+                
+                <!-- Lọc Giá -->
+                <div class="col-md-6">
+                    <label class="form-label text-muted fw-bold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Khoảng giá (VNĐ)</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0 text-muted rounded-start-3">Từ</span>
+                            <input type="number" min="0" step="100000" name="min_price" id="minPriceInput" class="form-control border-0 bg-light rounded-end-3 py-2 shadow-none text-dark fw-medium" value="{{ request.args.get('min_price', '') }}" placeholder="0">
+                        </div>
+                        <span class="text-muted fw-bold">-</span>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0 text-muted rounded-start-3">Đến</span>
+                            <input type="number" min="0" step="100000" name="max_price" id="maxPriceInput" class="form-control border-0 bg-light rounded-end-3 py-2 shadow-none text-dark fw-medium" value="{{ request.args.get('max_price', '') }}" placeholder="Không giới hạn">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sort -->
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold text-secondary small mb-1"><i class="bi bi-star-fill me-1 text-warning"></i> Hạng sao (Tối thiểu)</label>
-                    <select name="min_rating" class="form-select form-select-lg bg-light border-0">
-                        <option value="">Tất cả</option>
-                        <option value="5" {% if request.args.get('min_rating') == '5' %}selected{% endif %}>5 Sao</option>
-                        <option value="4" {% if request.args.get('min_rating') == '4' %}selected{% endif %}>Từ 4 Sao</option>
-                        <option value="3" {% if request.args.get('min_rating') == '3' %}selected{% endif %}>Từ 3 Sao</option>
+                    <label class="form-label text-muted fw-bold d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Sắp xếp theo</label>
+                    <select name="sort_by" class="form-select border-0 bg-light rounded-3 py-2 px-3 shadow-none text-dark fw-medium">
+                        <option value="rating_desc" {% if request.args.get('sort_by', 'rating_desc') == 'rating_desc' %}selected{% endif %}>Đánh giá cao nhất</option>
+                        <option value="price_asc" {% if request.args.get('sort_by') == 'price_asc' %}selected{% endif %}>Giá thấp đến cao</option>
+                        <option value="price_desc" {% if request.args.get('sort_by') == 'price_desc' %}selected{% endif %}>Giá cao đến thấp</option>
                     </select>
                 </div>
-                <!-- Nút Tìm Kiếm -->
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" style="border-radius: 0.75rem;">
-                        TÌM KIẾM
-                    </button>
+
+                <!-- Nút Tìm Kiếm & Xóa Bộ Lọc -->
+                <div class="col-md-3 d-flex flex-column justify-content-end">
+                    <div class="d-flex gap-2">
+                        <div class="flex-grow-1">
+                            {{ ui.render_btn_submit('Tìm kiếm', style='primary', icon_class='bi bi-search', btn_class='rounded-pill fw-bold w-100 py-2 shadow-sm') }}
+                        </div>
+                        <a href="{{ url_for('hotel.hotel') }}" class="btn btn-outline-secondary rounded-pill fw-bold px-3 py-2 shadow-sm d-flex align-items-center" title="Xóa bộ lọc" data-bs-toggle="tooltip">
+                            <i class="bi bi-eraser-fill"></i>
+                        </a>
+                    </div>
                 </div>
-            </form>
-        </div>
+
+                <!-- Tiện ích (Tags) với Collapse -->
+                <div class="col-12 mt-4">
+                    <label class="form-label text-muted fw-bold d-block text-uppercase mb-3" style="font-size: 0.7rem; letter-spacing: 0.5px;">Tiện ích</label>
+                    {% if all_tags %}
+                    {% set selected_tags = request.args.getlist('tags') %}
+                    
+                    {# Hiển thị 6 tiện ích đầu tiên #}
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for tag in all_tags[:6] %}
+                        <div>
+                            <input type="checkbox" class="btn-check" name="tags" value="{{ tag.id }}" id="tag_hotel_{{ tag.id }}" autocomplete="off" {% if tag.id|string in selected_tags %}checked{% endif %}>
+                            <label class="btn btn-outline-primary rounded-pill btn-sm px-3 fw-medium" for="tag_hotel_{{ tag.id }}">{{ tag.name }}</label>
+                        </div>
+                        {% endfor %}
+
+                        {# Kiểm tra xem có tag nào bị ẩn mà đang được chọn không #}
+                        {% set ns = namespace(has_hidden=false) %}
+                        {% for tag in all_tags[6:] %}
+                            {% if tag.id|string in selected_tags %}
+                                {% set ns.has_hidden = true %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# Các tiện ích còn lại được đưa vào Collapse #}
+                        {% if all_tags|length > 6 %}
+                        <div class="collapse w-100 mt-2 {% if ns.has_hidden %}show{% endif %}" id="moreTagsCollapse">
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for tag in all_tags[6:] %}
+                                <div>
+                                    <input type="checkbox" class="btn-check" name="tags" value="{{ tag.id }}" id="tag_hotel_{{ tag.id }}" autocomplete="off" {% if tag.id|string in selected_tags %}checked{% endif %}>
+                                    <label class="btn btn-outline-primary rounded-pill btn-sm px-3 fw-medium" for="tag_hotel_{{ tag.id }}">{{ tag.name }}</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="w-100 mt-2">
+                            <a class="text-decoration-none fw-semibold text-primary" data-bs-toggle="collapse" href="#moreTagsCollapse" role="button" aria-expanded="{% if ns.has_hidden %}true{% else %}false{% endif %}" aria-controls="moreTagsCollapse" onclick="this.innerText = this.innerText == 'Thu gọn tiện ích' ? 'Xem thêm tiện ích' : 'Thu gọn tiện ích'">
+                                {% if ns.has_hidden %}Thu gọn tiện ích{% else %}Xem thêm tiện ích{% endif %}
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+        {{ ui.render_semantic_ai_search_form() }}
     </div>
 
     <!-- Phần Bottom: Danh Sách Khách Sạn -->
-    <div class="row g-4 mb-5">
-        {% for hotel in hotels_pagination.items %}
-        <div class="col-md-6 col-lg-3">
-            {{ ui.render_hotel_card(hotel, detail_url=url_for('hotel.hotel_detail', hotel_id=hotel.id)) }}
-        </div>
-        {% else %}
-        <div class="col-12 text-center py-5">
-            <div class="mb-3">
-                <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
+    <div id="hotel-list-container">
+        {% if async_keyword %}
+            <!-- Khung Loading khi tìm kiếm bằng AI -->
+            <div id="ai-loading-spinner" class="text-center py-5 pulse-animation">
+                <div class="mb-3">
+                    <i class="bi bi-robot text-primary" style="font-size: 3rem;"></i>
+                </div>
+                <h5 class="text-primary fw-bold mb-2">AI đang phân tích yêu cầu của bạn...</h5>
+                <p class="text-muted small">Quá trình này có thể mất vài giây để tìm ra các lựa chọn tốt nhất.</p>
+                <div class="spinner-border text-primary mt-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
             </div>
-            <h4 class="text-muted fw-bold">Không tìm thấy khách sạn nào</h4>
-            <p class="text-secondary">Vui lòng thử thay đổi điều kiện tìm kiếm hoặc xóa bộ lọc.</p>
-            <a href="{{ url_for('hotel.hotel') }}" class="btn btn-outline-primary rounded-pill px-4">Xóa bộ lọc</a>
-        </div>
-        {% endfor %}
+            
+            <!-- Truyền từ khóa qua data-attribute để JS đọc -->
+            <div id="ai-search-data" data-keyword="{{ async_keyword }}" style="display: none;"></div>
+        {% else %}
+            {% include 'partials/hotel_list.html' %}
+        {% endif %}
     </div>
-
-    <!-- Phân trang -->
-    {% if hotels_pagination.pages > 1 %}
-    <div class="d-flex justify-content-center">
-        {{ ui.render_pagination(hotels_pagination, 'hotel.hotel') }}
-    </div>
-    {% endif %}
 
 {% endcall %}
 {% endblock %}
 
 {% block scripts %}
-<!-- Nhúng Script để tính năng thu gọn Tags (JS) hoạt động -->
-<script src="{{ url_for('static', filename='js/hotel-card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/hotel_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/date_sync.js') }}"></script>
+<script src="{{ url_for('static', filename='js/price_sync.js') }}"></script>
 {% endblock %}
