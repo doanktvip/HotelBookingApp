@@ -40,5 +40,7 @@ from .ai_service import AIService
 from .hotel_service import HotelService
 from .system_config_service import SystemConfigService
 from .booking_service import BookingService
-
-__all__ = ['BaseService', 'RoomTypeService', 'UserService', 'AIService', 'HotelService', 'SystemConfigService', 'BookingService']
+from .prediction_service import PredictionService
+from .search_service import SearchService
+from .prediction_service import PricePrediction
+__all__ = ['BaseService', 'RoomTypeService', 'UserService', 'AIService', 'HotelService', 'SystemConfigService', 'BookingService', 'PredictionService', 'SearchService', 'PricePrediction']

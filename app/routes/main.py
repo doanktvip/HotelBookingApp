@@ -1,18 +1,15 @@
 from flask import Blueprint, render_template
 from flask_login import current_user
-
 from app.services import RoomTypeService, HotelService
 from app.extensions import db, cache
 from app.models import UserRole
-from app.services.search_service import SearchService
+from app.services.recommendation_service import RecommendationService
 
 # Định nghĩa Blueprint cho các tuyến đường chính
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    user = current_user if current_user.is_authenticated else None
-
     room_type_service = RoomTypeService(db.session)
     room_type_pagination = room_type_service.get_room_types()
 
@@ -43,8 +40,8 @@ def api_recommendations():
 
     # Nếu chưa có trong RAM, tiến hành chạy AI để sinh kết quả
     user = current_user if current_user.is_authenticated else None
-    search_service = SearchService(db.session)
-    recommended_hotels = search_service.get_recommended_hotels(user=user, limit=4)
+    recommendation_service = RecommendationService(db.session)
+    recommended_hotels = recommendation_service.get_recommended_hotels(user=user, limit=4)
     
     # Render ra giao diện HTML
     html = render_template('partials/recommendations.html', recommended_hotels=recommended_hotels)

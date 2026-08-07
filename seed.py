@@ -484,7 +484,9 @@ def seed_other_tables(created_hotels):
         SystemConfig(config_key='CHECK_OUT_TIME', config_value='12:00', description='Thời gian trả phòng mặc định (HH:MM)'),
         SystemConfig(config_key='HOTLINE_NUMBER', config_value='19001508', description='Số điện thoại hotline hỗ trợ khách hàng'),
         SystemConfig(config_key='OTP_EXPIRATION_MINUTES', config_value='5', description='Thời gian tồn tại của mã OTP (phút)'),
-        SystemConfig(config_key='TAX_FEE_PERCENTAGE', config_value='0', description='Phần trăm thuế/phí áp dụng cho đơn đặt phòng')
+        SystemConfig(config_key='TAX_FEE_PERCENTAGE', config_value='0', description='Phần trăm thuế/phí áp dụng cho đơn đặt phòng'),
+        SystemConfig(config_key='AI_PREDICTION_INTERVAL', config_value='7', description='Số ngày dự báo giá tự động'),
+        SystemConfig(config_key='MAX_PRICE_ADJUSTMENT_PERCENTAGE', config_value='20', description='Phần trăm tăng giá tối đa')
     ]
     db.session.bulk_save_objects(configs)
     
@@ -500,13 +502,14 @@ def seed_other_tables(created_hotels):
             )
             db.session.add(otp)
             
-            search = SearchHistory(
-                user_id=customer.id,
-                search_query="Khách sạn trung tâm Sài Gòn",
-                parsed_data={"location": "Hồ Chí Minh"}
-            )
-            db.session.add(search)
-
+        search = SearchHistory(
+            user_id=customers[0].id,
+            search_query="Khách sạn trung tâm Sài Gòn",
+            parsed_data={"name": None, "sort_by": None, "tag_ids": None, "capacity": None, "check_in": None, "location": "Hồ Chí Minh", "bed_count": None, "check_out": None, "max_price": None, "min_price": None, "min_rating": None},
+            is_useful=True
+        )
+        db.session.add(search)
+        
     # 3. PricePrediction & 5. PriceHistory
     if created_hotels:
         for hotel in created_hotels[:3]:

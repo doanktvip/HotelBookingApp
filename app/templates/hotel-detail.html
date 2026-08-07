@@ -91,7 +91,8 @@
                     room_type, 
                     available_count=available_counts[room_type.id], 
                     check_in_date=check_in_date.strftime('%Y-%m-%d'), 
-                    check_out_date=check_out_date.strftime('%Y-%m-%d')
+                    check_out_date=check_out_date.strftime('%Y-%m-%d'),
+                    dynamic_price=dynamic_prices[room_type.id]
                 ) }}
                 {% else %}
                 <div class="text-center py-5 bg-white rounded-4 border">
