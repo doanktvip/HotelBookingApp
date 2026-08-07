@@ -1,15 +1,12 @@
-from flask import Blueprint, redirect, render_template, request, jsonify, session, url_for, flash
-from app.services import HotelService, BookingService
+from flask import Blueprint, redirect, render_template, request, jsonify, url_for, flash
+from app.services import HotelService, BookingService, SearchService, PricePrediction
 from app.extensions import db
 from app.utils import get_vn_time
+from datetime import timedelta
 from urllib.parse import urlparse
+from flask_login import current_user
 
 hotel_bp = Blueprint('hotel', __name__)
-
-
-from flask_login import current_user
-from app.services.hotel_service import HotelService
-from app.services.search_service import SearchService
 
 @hotel_bp.route('/hotels')
 def hotel():
@@ -19,7 +16,6 @@ def hotel():
     async_keyword = None
     
     if keyword:
-        # Thay vì chạy AI đồng bộ gây treo trang, ta đánh dấu biến cờ để giao diện tải trước rồi mới gọi API ngầm
         async_keyword = keyword
         hotels_pagination = None
 
@@ -47,18 +43,23 @@ def api_search():
         return jsonify({"error": "Missing keyword"}), 400
         
     search_service = SearchService(db.session)
-    hotels_pagination, success, error_msg, flash_type = search_service.semantic_search(
-        keyword, 
-        user=current_user if current_user.is_authenticated else None,
-        per_page=8
-    )
+    hotel_service = HotelService(db.session)
     
-    # Trả về partial HTML (không render lại toàn trang)
-    return render_template('partials/hotel_list.html', 
-                           hotels_pagination=hotels_pagination, 
-                           success=success, 
-                           error_msg=error_msg, 
-                           flash_type=flash_type)
+    try:
+        hotels_pagination = search_service.semantic_search(
+            keyword, 
+            user=current_user if current_user.is_authenticated else None,
+            per_page=8
+        )
+        
+        if hotels_pagination is None:
+            flash("AI không thể nhận diện được yêu cầu tìm kiếm của bạn.", "warning")
+            
+    except Exception as e:
+        flash(str(e), "danger")
+        hotels_pagination = hotel_service.get_hotels(per_page=8)
+    
+    return render_template('partials/hotel_list.html', hotels_pagination=hotels_pagination)
 
 @hotel_bp.route('/hotels/<int:hotel_id>')
 def hotel_detail(hotel_id):
@@ -71,6 +72,7 @@ def hotel_detail(hotel_id):
     today = get_vn_time().date()
     
     available_counts = {}
+    dynamic_prices = {}
     
     for room_type in hotel.room_types:
         available_rooms = booking_service.get_available_rooms(
@@ -81,12 +83,23 @@ def hotel_detail(hotel_id):
         )
         available_counts[room_type.id] = len(available_rooms)
         
+        # Gọi BookingService để tái sử dụng lõi tính giá AI
+        days = (check_out_date - check_in_date).days
+        if days > 0:
+            total_price, avg_daily = booking_service.calculate_dynamic_total_price(
+                hotel.id, room_type.base_price, check_in_date, check_out_date, 1
+            )
+            dynamic_prices[room_type.id] = float(avg_daily)
+        else:
+            dynamic_prices[room_type.id] = float(room_type.base_price)
+        
     return render_template('hotel-detail.html', 
                            hotel=hotel,
                            check_in_date=check_in_date,
                            check_out_date=check_out_date,
                            today_str=today.strftime('%Y-%m-%d'),
-                           available_counts=available_counts)
+                           available_counts=available_counts,
+                           dynamic_prices=dynamic_prices)
 
 
 @hotel_bp.route('/set-search-dates', methods=['POST'])

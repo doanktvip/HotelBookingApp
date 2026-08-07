@@ -37,7 +37,8 @@
                         
                         <div class="d-flex flex-column gap-1 mb-4 pb-4 border-bottom border-light-subtle">
                             <h5 class="fw-bold text-dark mb-0">{{ room_type.name }}</h5>
-                            <div class="text-muted small">
+                            <div class="text-muted small" id="price-wrapper">
+                                <div class="text-muted text-decoration-line-through mb-1 d-none" id="base-price-strikethrough" style="font-size: 0.85rem;">{{ "{:,.0f}".format(room_type.base_price) }}đ</div>
                                 <span class="fw-bold text-primary" id="basePrice" data-price="{{ room_type.base_price }}">{{ "{:,.0f}".format(room_type.base_price) }}đ</span> / đêm
                             </div>
                         </div>

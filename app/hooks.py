@@ -16,6 +16,8 @@ def load_global_variables():
     g.hotline_number = SystemConfig.get_value('HOTLINE_NUMBER', '19001508',type_func=str)
     g.otp_expiration_minutes = SystemConfig.get_value('OTP_EXPIRATION_MINUTES', 5, type_func=int)
     g.tax_fee = SystemConfig.get_value('TAX_FEE_PERCENTAGE', 0, type_func=int)
+    g.ai_prediction_interval = SystemConfig.get_value('AI_PREDICTION_INTERVAL', 7, type_func=int)
+    g.max_price_adjustment_percentage = SystemConfig.get_value('MAX_PRICE_ADJUSTMENT_PERCENTAGE', 20, type_func=int)
 
 def check_maintenance_mode():
     """Kiểm tra và chặn truy cập nếu hệ thống đang bảo trì"""

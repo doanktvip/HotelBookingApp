@@ -1,0 +1,98 @@
+{% extends "layout/base.html" %}
+{% block title %}Dự báo giá phòng động - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1 text-primary"><i class="bi bi-graph-up-arrow me-2"></i>Dự báo Giá Động (Dynamic Pricing)</h2>
+            <p class="text-muted mb-0">Hệ thống AI đề xuất tăng/giảm giá tự động dựa trên công suất phòng 7 ngày tới.</p>
+        </div>
+        
+        <form action="{{ url_for('admin.run_predictions') }}" method="POST">
+            <button type="submit" class="btn btn-primary fw-bold shadow-sm" onclick="this.innerHTML='<span class=\'spinner-border spinner-border-sm\' role=\'status\' aria-hidden=\'true\'></span> Đang chạy AI...'; this.disabled=true; this.form.submit();">
+                <i class="bi bi-magic me-1"></i> Chạy Dự Báo Ngay
+            </button>
+        </form>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="px-4 py-3">Khách sạn</th>
+                            <th class="py-3">Ngày áp dụng</th>
+                            <th class="py-3 text-center">Tỉ lệ đề xuất</th>
+                            <th class="py-3">Lý do (AI Phân tích)</th>
+                            <th class="py-3 text-center">Trạng thái</th>
+                            <th class="py-3 text-center">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in predictions %}
+                        <tr>
+                            <td class="px-4 py-3 fw-semibold text-dark">
+                                <i class="bi bi-building text-primary me-2"></i>{{ p.hotel.name }}
+                            </td>
+                            <td class="py-3 fw-medium">
+                                {{ p.target_date.strftime('%d/%m/%Y') }}
+                            </td>
+                            <td class="py-3 text-center">
+                                {% if p.adjustment_percentage > 0 %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fs-6">
+                                        <i class="bi bi-arrow-up-circle-fill me-1"></i> +{{ "{:.0f}".format(p.adjustment_percentage * 100) }}%
+                                    </span>
+                                {% elif p.adjustment_percentage < 0 %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle fs-6">
+                                        <i class="bi bi-arrow-down-circle-fill me-1"></i> {{ "{:.0f}".format(p.adjustment_percentage * 100) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle fs-6">
+                                        Không đổi
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 text-muted" style="max-width: 300px;">
+                                <small>{{ p.reason }}</small>
+                            </td>
+                            <td class="py-3 text-center">
+                                {% if p.is_applied %}
+                                    <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle me-1"></i>Đã áp dụng</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill px-3 py-2 text-white"><i class="bi bi-clock me-1"></i>Chờ duyệt</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 text-center">
+                                <form action="{{ url_for('admin.toggle_prediction', prediction_id=p.id) }}" method="POST" class="d-inline">
+                                    {% if p.is_applied %}
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill fw-medium px-3">
+                                            Hủy áp dụng
+                                        </button>
+                                    {% else %}
+                                        <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-medium px-3 shadow-sm">
+                                            Duyệt giá này
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="bi bi-robot display-4 text-light"></i>
+                                    <h5 class="mt-3">Chưa có dự báo nào</h5>
+                                    <p>Hãy bấm nút "Chạy Dự Báo Ngay" để AI bắt đầu phân tích dữ liệu phòng.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

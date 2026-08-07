@@ -15,13 +15,22 @@ def create_app(config_name=None):
     # Nạp cấu hình từ config.py
     app.config.from_object(config_by_name.get(config_name, config_by_name['default']))
 
-    from app.extensions import db, login_manager, socketio, cache, mail
+    from app.extensions import db, login_manager, socketio, cache, mail, scheduler
 
     # Gắn kết các extensions với ứng dụng
     db.init_app(app)
     login_manager.init_app(app)
     cache.init_app(app, config={'CACHE_TYPE': 'SimpleCache'})
     mail.init_app(app)
+    
+    # Cấu hình và khởi chạy Scheduler
+    scheduler.init_app(app)
+    scheduler.start()
+    
+    # Đăng ký Job (Chạy vào 00:00 mỗi ngày)
+    from app.tasks import daily_price_prediction_job
+    scheduler.add_job(id='daily_prediction_job', func=daily_price_prediction_job, trigger='cron', hour=0, minute=0)
+    
     # Danh sách tên miền (Origins) được phép vượt tường lửa CORS
     socketio.init_app(app, cors_allowed_origins=app.config['CORS_ALLOWED_ORIGINS'])
 

@@ -8,6 +8,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SCHEDULER_API_ENABLED = True
     CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '*')
     if CORS_ALLOWED_ORIGINS != '*':
         # Ví dụ: ['https://domain1.com', 'https://domain2.com']

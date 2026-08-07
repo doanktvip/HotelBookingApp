@@ -1,6 +1,6 @@
 from decimal import Decimal
 from flask import g, session
-from app.models import Room, Booking, BookingDetail, BookingStatus, RoomStatus, Payment, PaymentStatus, RefundLog
+from app.models import Room, Booking, BookingDetail, BookingStatus, RoomStatus, Payment, PaymentStatus, RefundLog, PricePrediction
 from app.services import BaseService
 from datetime import datetime, timedelta
 from app.utils import get_vn_time
@@ -75,6 +75,31 @@ class BookingService(BaseService):
             return self.get_paginated(query, default_per_page=per_page)
         return self.get_paginated(query)
 
+    def calculate_dynamic_total_price(self, hotel_id, base_price, check_in, check_out, quantity):
+        predictions = self.db.query(PricePrediction).filter(
+            PricePrediction.hotel_id == hotel_id,
+            PricePrediction.is_applied == True,
+            PricePrediction.target_date >= check_in,
+            PricePrediction.target_date < check_out
+        ).all()
+        
+        pred_dict = {p.target_date: p.adjustment_percentage for p in predictions}
+        
+        total_room_price = Decimal(0)
+        current_date = check_in
+        while current_date < check_out:
+            adjustment = pred_dict.get(current_date, 0.0)
+            daily_price = Decimal(str(base_price)) * Decimal(str(1 + adjustment))
+            total_room_price += daily_price
+            current_date += timedelta(days=1)
+            
+        total_price = total_room_price * quantity * (Decimal(100 + g.tax_fee) / Decimal(100))
+        
+        days_count = Decimal(str((check_out - check_in).days))
+        average_daily = total_room_price / days_count
+        
+        return round(total_price, 2), round(average_daily, 2)
+
     def prepare_booking_data(self, room_type, check_in, check_out, quantity, user_id):
         if check_out <= check_in:
             raise ValueError("Ngày trả phòng phải sau ngày nhận phòng.")
@@ -87,8 +112,7 @@ class BookingService(BaseService):
         if len(available_rooms) < quantity:
             raise ValueError(f"Chỉ còn {len(available_rooms)} phòng trống trong khoảng thời gian này.")
             
-        nights = (check_out - check_in).days
-        total_price = float(room_type.base_price * quantity * nights * (Decimal(100 + g.tax_fee) / Decimal(100)))
+        total_price, avg_daily = self.calculate_dynamic_total_price(room_type.hotel_id, room_type.base_price, check_in, check_out, quantity)
         
         return {
             'user_id': user_id,
@@ -99,7 +123,8 @@ class BookingService(BaseService):
             'check_in': check_in.strftime('%d/%m/%Y'),
             'check_out': check_out.strftime('%d/%m/%Y'),
             'quantity': quantity,
-            'price_at_booking': float(room_type.base_price),
+            'price_at_booking': float(room_type.base_price),  # Giá gốc để tính toán
+            'average_daily_price': avg_daily,  # Giá trung bình đã qua AI để hiển thị cho khách
             'total_price': total_price
         }
 
@@ -116,12 +141,12 @@ class BookingService(BaseService):
         if len(available_rooms) < quantity:
             raise ValueError(f"Chỉ còn {len(available_rooms)} phòng trống trong khoảng thời gian này.")
             
-        # 2. Tính số đêm
+        # 2. Tính số đêm và giá
         nights = (check_out - check_in).days
         if nights <= 0:
             raise ValueError("Ngày trả phòng phải sau ngày nhận phòng.")
             
-        total_price = price_at_booking * quantity * nights * (Decimal(100 + g.tax_fee) / Decimal(100))
+        total_price, avg_daily = self.calculate_dynamic_total_price(hotel_id, price_at_booking, check_in, check_out, quantity)
         
         # 3. Tạo Booking
         new_booking = Booking(
@@ -130,7 +155,7 @@ class BookingService(BaseService):
             room_type_id=room_type_id,
             check_in=check_in,
             check_out=check_out,
-            total_price=total_price,
+            total_price=Decimal(str(total_price)),
             status=BookingStatus.CONFIRMED
         )
         self.db.add(new_booking)
@@ -141,7 +166,7 @@ class BookingService(BaseService):
             detail = BookingDetail(
                 booking_id=new_booking.id,
                 room_id=room.id,
-                price_at_booking=price_at_booking
+                price_at_booking=Decimal(str(avg_daily))
             )
             self.db.add(detail)
             
