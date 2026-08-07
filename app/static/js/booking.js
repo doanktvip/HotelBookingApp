@@ -39,59 +39,101 @@ document.addEventListener('DOMContentLoaded', function() {
     
     paymentRadios.forEach(radio => radio.addEventListener('change', updateMethodText));
     
-    // Cập nhật tính toán
-    function calculateTotal() {
+    // Cập nhật tính toán qua API
+    async function calculateTotal() {
         if (!checkInInput || !checkOutInput || !checkInInput.value || !checkOutInput.value) return;
         
         const d1 = new Date(checkInInput.value);
-        const d2 = new Date(checkOutInput.value);
-        
-        // Lưu ý: Việc cập nhật min của check_out khi check_in thay đổi
-        // và đẩy check_out tịnh tiến lên đã được xử lý ở date_sync.js
-        
-        // Vì date_sync.js có thể đang tự động sửa checkOutInput.value ngay lúc này,
-        // ta cần đọc lại giá trị mới nhất của d2
         const finalD2 = new Date(checkOutInput.value);
         
         if (finalD2 <= d1) {
             return; // Tránh tính toán sai nếu d2 vẫn chưa được cập nhật kịp
         }
         
-        const timeDiff = Math.abs(finalD2.getTime() - d1.getTime());
-        const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
-        
         const qty = quantityInput ? (parseInt(quantityInput.value) || 1) : 1;
-        const subtotal = diffDays * qty * basePrice;
         
-        // Sử dụng biến toàn cục TAX_FEE_PERCENT đã được truyền từ Jinja2
-        const taxFeePercent = typeof TAX_FEE_PERCENT !== 'undefined' ? TAX_FEE_PERCENT : 0;
-        const tax = subtotal * (taxFeePercent / 100);
-        const total = subtotal + tax;
-        
-        const formattedSubtotal = subtotal.toLocaleString('vi-VN') + 'đ';
-        const formattedTax = tax.toLocaleString('vi-VN') + 'đ';
-        const formattedTotal = total.toLocaleString('vi-VN') + 'đ';
-        const formattedBase = basePrice.toLocaleString('vi-VN') + 'đ';
-        
-        // Cập nhật DOM
-        if (sCheckin) sCheckin.textContent = formatDateVN(checkInInput.value);
-        if (sCheckout) sCheckout.textContent = formatDateVN(checkOutInput.value);
-        if (sNights) sNights.textContent = `${diffDays} đêm`;
-        if (sQty) sQty.textContent = `${qty} phòng`;
-        
-        const calcBasePriceEl = document.getElementById('calc-base-price');
-        const calcNightsEl = document.getElementById('calc-nights');
-        const calcQtyEl = document.getElementById('calc-qty');
-        const summaryTaxEl = document.getElementById('summary-tax');
-        
-        if (calcBasePriceEl) calcBasePriceEl.textContent = formattedBase;
-        if (calcNightsEl) calcNightsEl.textContent = diffDays;
-        if (calcQtyEl) calcQtyEl.textContent = qty;
-        
-        if (sSubtotal) sSubtotal.textContent = formattedSubtotal;
-        if (summaryTaxEl) summaryTaxEl.textContent = formattedTax;
-        if (sTotal) sTotal.textContent = formattedTotal;
-        if (btnTotal) btnTotal.textContent = formattedTotal;
+        // Lấy room_type_id từ form
+        const form = document.getElementById('bookingForm');
+        let action = form.getAttribute('action');
+        let roomTypeIdMatch = action.match(/\/booking\/room-type\/(\d+)/);
+        let roomTypeId = roomTypeIdMatch ? roomTypeIdMatch[1] : null;
+
+        if (!roomTypeId) return;
+
+        try {
+            const response = await fetch('/api/booking/calculate-price', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    check_in: checkInInput.value,
+                    check_out: checkOutInput.value,
+                    quantity: qty,
+                    room_type_id: roomTypeId
+                })
+            });
+
+            if (!response.ok) throw new Error('API Error');
+            const data = await response.json();
+
+            const subtotal = data.total_price / (1 + (typeof TAX_FEE_PERCENT !== 'undefined' ? TAX_FEE_PERCENT / 100 : 0));
+            const tax = data.total_price - subtotal;
+            const total = data.total_price;
+            
+            const formattedSubtotal = subtotal.toLocaleString('vi-VN') + 'đ';
+            const formattedTax = tax.toLocaleString('vi-VN') + 'đ';
+            const formattedTotal = total.toLocaleString('vi-VN') + 'đ';
+            const formattedBase = basePrice.toLocaleString('vi-VN') + 'đ';
+            
+            // Cập nhật DOM
+            if (sCheckin) sCheckin.textContent = formatDateVN(checkInInput.value);
+            if (sCheckout) sCheckout.textContent = formatDateVN(checkOutInput.value);
+            if (sNights) sNights.textContent = `${data.days} đêm`;
+            if (sQty) sQty.textContent = `${qty} phòng`;
+            
+            const calcBasePriceEl = document.getElementById('calc-base-price');
+            const calcNightsEl = document.getElementById('calc-nights');
+            const calcQtyEl = document.getElementById('calc-qty');
+            const summaryTaxEl = document.getElementById('summary-tax');
+            
+            // Nếu có API trả về giá trị avg_daily_price, ta có thể cập nhật chi tiết ở đây
+            // UI sẽ cần cập nhật ở template jinja2. Ở JS tạm thời điền format cơ bản
+            if (calcBasePriceEl) calcBasePriceEl.textContent = (data.average_daily_price || basePrice).toLocaleString('vi-VN') + 'đ';
+            if (calcNightsEl) calcNightsEl.textContent = data.days;
+            if (calcQtyEl) calcQtyEl.textContent = qty;
+            
+            if (sSubtotal) sSubtotal.textContent = formattedSubtotal;
+            if (summaryTaxEl) summaryTaxEl.textContent = formattedTax;
+            if (sTotal) sTotal.textContent = formattedTotal;
+            if (btnTotal) btnTotal.textContent = formattedTotal;
+            
+            // Cập nhật màu sắc nếu giá thay đổi (tuỳ chọn thêm class)
+            const priceWrapper = document.getElementById('price-wrapper');
+            const basePriceEl = document.getElementById('basePrice');
+            const strikeEl = document.getElementById('base-price-strikethrough');
+            
+            if (basePriceEl) {
+                basePriceEl.textContent = (data.average_daily_price || basePrice).toLocaleString('vi-VN') + 'đ';
+            }
+            
+            if (priceWrapper && data.average_daily_price < basePrice) {
+                if (strikeEl) strikeEl.classList.remove('d-none');
+                if (basePriceEl) {
+                    basePriceEl.classList.remove('text-primary');
+                    basePriceEl.classList.add('text-danger');
+                }
+            } else if (priceWrapper) {
+                if (strikeEl) strikeEl.classList.add('d-none');
+                if (basePriceEl) {
+                    basePriceEl.classList.remove('text-danger');
+                    basePriceEl.classList.add('text-primary');
+                }
+            }
+
+        } catch (error) {
+            console.error('Lỗi tính giá:', error);
+        }
     }
     
     if (checkInInput) checkInInput.addEventListener('change', calculateTotal);

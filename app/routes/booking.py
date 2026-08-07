@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, flash, redirect, url_for, g
+from flask import Blueprint, render_template, request, flash, redirect, url_for, g, jsonify
 from flask_login import login_required, current_user
 from app.extensions import db, socketio
 from app.services import RoomTypeService, BookingService
@@ -145,3 +145,40 @@ def momo_ipn():
                 socketio.emit('payment_refunded', {'order_id': order_id, 'reason': refund_reason}, room=order_id)
                 
     return '', 204 # HTTP 204 No Content là chuẩn response cho Webhook
+@booking_bp.route('/api/booking/calculate-price', methods=['POST'])
+def api_calculate_price():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid JSON data'}), 400
+        
+    check_in_str = data.get('check_in')
+    check_out_str = data.get('check_out')
+    quantity = int(data.get('quantity', 1))
+    room_type_id = int(data.get('room_type_id'))
+    
+    if not all([check_in_str, check_out_str, room_type_id]):
+        return jsonify({'error': 'Missing required fields'}), 400
+        
+    try:
+        check_in = datetime.strptime(check_in_str, '%Y-%m-%d').date()
+        check_out = datetime.strptime(check_out_str, '%Y-%m-%d').date()
+        
+        room_type_service = RoomTypeService(db.session)
+        room_type = room_type_service.get_room_type_by_id(room_type_id)
+        if not room_type:
+            return jsonify({'error': 'Room type not found'}), 404
+            
+        booking_service = BookingService(db.session)
+        total_price, avg_daily = booking_service.calculate_dynamic_total_price(
+            room_type.hotel_id, room_type.base_price, check_in, check_out, quantity
+        )
+        
+        return jsonify({
+            'total_price': float(total_price),
+            'average_daily_price': float(avg_daily),
+            'base_price': float(room_type.base_price),
+            'quantity': quantity,
+            'days': (check_out - check_in).days
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

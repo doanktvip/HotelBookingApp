@@ -134,16 +134,7 @@
     <div id="hotel-list-container">
         {% if async_keyword %}
             <!-- Khung Loading khi tìm kiếm bằng AI -->
-            <div id="ai-loading-spinner" class="text-center py-5 pulse-animation">
-                <div class="mb-3">
-                    <i class="bi bi-robot text-primary" style="font-size: 3rem;"></i>
-                </div>
-                <h5 class="text-primary fw-bold mb-2">AI đang phân tích yêu cầu của bạn...</h5>
-                <p class="text-muted small">Quá trình này có thể mất vài giây để tìm ra các lựa chọn tốt nhất.</p>
-                <div class="spinner-border text-primary mt-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </div>
+            {{ ui.render_ai_loading_spinner(container_class="py-5") }}
             
             <!-- Truyền từ khóa qua data-attribute để JS đọc -->
             <div id="ai-search-data" data-keyword="{{ async_keyword }}" style="display: none;"></div>

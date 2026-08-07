@@ -1,77 +1,84 @@
 import os
 import json
-import re
-import google.generativeai as genai
+from datetime import datetime
+from google import genai
+from google.genai import types
+from tenacity import retry, stop_after_attempt, wait_exponential
+from pydantic import BaseModel, Field
+from typing import Optional, List
 from app.utils import get_vn_time
 from app.services import BaseService
 from app.extensions import cache
-from app.models import SearchHistory
+from app.models import SearchHistory, Room, RoomType, Booking, BookingDetail, BookingStatus, PricePrediction, SystemConfig
+
+class SearchQuerySchema(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    min_rating: Optional[float] = None
+    capacity: Optional[int] = None
+    bed_count: Optional[int] = None
+    check_in: Optional[str] = None
+    check_out: Optional[str] = None
+    tag_ids: List[int] = Field(default_factory=list)
+    sort_by: Optional[str] = None
+
+    def has_useful_data(self) -> bool:
+        return any(v is not None and v != "" and v != [] for v in self.model_dump().values())
+
+class HotelRecommendation(BaseModel):
+    hotel_id: int
+    match_score: int
+
+class PricePredictionItem(BaseModel):
+    hotel_id: int
+    target_date: str # YYYY-MM-DD
+    adjustment_percentage: float
+    reason: str
 
 @cache.memoize(timeout=86400)
-def call_gemini_api(prompt):
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=6))
+def call_gemini_api(prompt, schema_name=None):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in environment variables.")
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-3.5-flash')
-    response = model.generate_content(
-        prompt,
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json"
-        )
+    
+    client = genai.Client(api_key=api_key)
+    config = types.GenerateContentConfig(response_mime_type="application/json")
+    
+    if schema_name == "SearchQuery":
+        config.response_schema = SearchQuerySchema
+    elif schema_name == "Recommendations":
+        config.response_schema = list[HotelRecommendation]
+    elif schema_name == "PricePredictions":
+        config.response_schema = list[PricePredictionItem]
+
+    response = client.models.generate_content(
+        model='gemini-3.5-flash',
+        contents=prompt,
+        config=config
     )
     return response.text
 
-def extract_json(text):
-    """Trích xuất mảng JSON hoặc Object JSON bao trọn cả chuỗi kết quả (Bỏ qua mọi rác xung quanh)"""
-    text = text.strip()
-    
-    # Làm sạch thẻ markdown trước (nếu có)
-    if text.startswith("```"):
-        text = re.sub(r'^```[a-zA-Z]*\n?', '', text)
-        text = re.sub(r'\n?```$', '', text)
-        text = text.strip()
-
-    # Thử parse trực tiếp trước
-    try:
-        json.loads(text)
-        return text
-    except:
-        pass
-
-    # Dùng regex để bóc tách block JSON (Object hoặc Array) lớn nhất
-    # match.group(1) sẽ lấy từ dấu ngoặc mở đầu tiên đến dấu ngoặc đóng tương ứng
-    match = re.search(r'(\{.*\}|\[.*\])', text, re.DOTALL)
-    if match:
-        extracted = match.group(1)
-        try:
-            json.loads(extracted)
-            return extracted
-        except:
-            pass
-
-    return text
 
 class AIService(BaseService):
     def __init__(self, db_session):
         super().__init__(db_session)
 
     def parse_search_query(self, keyword):
-        # 1. Kiểm tra Database xem đã có ai từng tìm câu này chưa (Database Caching)
         existing_history = self.db.query(SearchHistory).filter(
             SearchHistory.search_query.ilike(keyword),
             SearchHistory.parsed_data != None
         ).first()
         
         if existing_history:
-            print("Lấy kết quả từ Database SearchHistory, không gọi AI!")
             return existing_history.parsed_data
 
-        # 2. Nếu chưa có, mới bắt đầu lấy Tags và gọi AI
         tags = self.get_all_tags()
         tag_info = "\n".join([f"- ID: {tag.id}, Name: '{tag.name}'" for tag in tags])
 
-        current_date = get_vn_time().strftime('%Y-%m-%d')
+        current_date = get_vn_time().strftime('%d-%m-%Y')
 
         prompt = f"""
                     Bạn là một chuyên gia phân tích dữ liệu hệ thống đặt phòng khách sạn. (Lệnh bỏ qua cache bộ nhớ)
@@ -115,52 +122,62 @@ class AIService(BaseService):
                     """
 
         try:
-            response_text = call_gemini_api(prompt)
-            clean_text = extract_json(response_text)
-            parsed_data = json.loads(clean_text)
-            
-            if not isinstance(parsed_data, dict):
-                raise ValueError("JSON trả về không phải là Object/Dict")
-                
-            return parsed_data
+            response_text = call_gemini_api(prompt, "SearchQuery")
+            parsed_data = json.loads(response_text)
+            validated_data = SearchQuerySchema(**parsed_data).model_dump()
+            return validated_data
         except Exception as e:
             print(f"Lỗi khi gọi Gemini API: {e}")
-            # Xóa cache ngay lập tức nếu dữ liệu trả về bị lỗi (để lần sau gọi lại LLM)
-            cache.delete_memoized(call_gemini_api, prompt)
+            cache.delete_memoized(call_gemini_api, prompt, "SearchQuery")
             return None
 
-    def save_search_history(self, keyword, parsed_data, user_id=None):
-        history = SearchHistory(
-            user_id=user_id,
-            search_query=keyword,
-            parsed_data=parsed_data
-        )
-        self.db.add(history)
-        try:
-            self.commit_or_rollback()
-        except Exception as e:
-            print(f"Lỗi khi lưu Search History: {e}")
 
-    def get_ai_recommendations(self, user, candidates, recent_searches, limit=4):
-        if not candidates:
-            return []
-            
+    def get_recommendation_data_for_ai(self, candidates, recent_searches, recent_bookings):
         candidate_data = []
         for h in candidates:
-            tags = [t.name for t in h.tags]
+            tags_with_id = [{"id": t.id, "name": t.name} for t in h.tags]
+            
+            # Tính toán các thông số cao nhất từ các loại phòng đang hoạt động
+            active_rooms = [rt for rt in h.room_types if rt.is_active]
+            max_capacity = max((rt.max_occupancy for rt in active_rooms), default=0)
+            max_bed_count = max((rt.bed_count for rt in active_rooms), default=0)
+            max_price = max((float(rt.base_price) for rt in active_rooms), default=0)
+            
             candidate_data.append({
                 "hotel_id": h.id,
                 "name": h.name,
                 "location": h.location,
                 "rating": h.rating,
-                "tags": tags,
-                "min_price": float(h.min_price) if h.min_price else 0
+                "tags": tags_with_id,
+                "min_price": float(h.min_price) if h.min_price else 0,
+                "max_price": max_price,
+                "max_capacity": max_capacity,
+                "max_bed_count": max_bed_count,
+                "description": h.description
             })
             
         history_data = []
         for s in recent_searches:
             if s.parsed_data:
                 history_data.append(s.parsed_data)
+                
+        booking_data = []
+        for b in recent_bookings:
+            if b.hotel and b.room_type:
+                booking_data.append({
+                    "hotel_name": b.hotel.name,
+                    "location": b.hotel.location,
+                    "room_type": b.room_type.name,
+                    "price_paid": float(b.total_price),
+                    "tags": [{"id": t.id, "name": t.name} for t in b.hotel.tags]
+                })
+        return candidate_data, history_data, booking_data
+
+    def get_ai_recommendations(self, user, candidates, recent_searches, recent_bookings, limit=4):
+        if not candidates:
+            return []
+            
+        candidate_data, history_data, booking_data = self.get_recommendation_data_for_ai(candidates, recent_searches, recent_bookings)
                 
         user_context = "KHÁCH CHƯA ĐĂNG NHẬP (GUEST)"
         if user:
@@ -173,7 +190,10 @@ class AIService(BaseService):
         Đây là dữ liệu Lịch sử Tìm kiếm (Search History):
         {json.dumps(history_data, ensure_ascii=False)}
         
-        (Lưu ý: Nếu KHÁCH CHƯA ĐĂNG NHẬP, lịch sử tìm kiếm trên là XU HƯỚNG ĐÁM ĐÔNG của tất cả mọi người. Nếu KHÁCH ĐÃ ĐĂNG NHẬP, đó là lịch sử CÁ NHÂN CỦA HỌ).
+        Đây là dữ liệu Lịch sử Đặt phòng thành công (Booking History):
+        {json.dumps(booking_data, ensure_ascii=False)}
+        
+        (Lưu ý: Nếu KHÁCH CHƯA ĐĂNG NHẬP, lịch sử tìm kiếm trên là XU HƯỚNG ĐÁM ĐÔNG. Nếu KHÁCH ĐÃ ĐĂNG NHẬP, đó là lịch sử CÁ NHÂN. Lịch sử Đặt phòng là ưu tiên cao nhất để hiểu gu của khách hàng).
         
         Dưới đây là danh sách {len(candidates)} khách sạn ứng viên (Candidates) đã qua vòng sơ loại bằng SQL:
         {json.dumps(candidate_data, ensure_ascii=False)}
@@ -196,18 +216,18 @@ class AIService(BaseService):
         """
         
         try:
-            response_text = call_gemini_api(prompt)
-            clean_text = extract_json(response_text)
-            recommended_items = json.loads(clean_text)
+            response_text = call_gemini_api(prompt, "Recommendations")
+            parsed_data = json.loads(response_text)
+            validated_items = [HotelRecommendation(**item).model_dump() for item in parsed_data]
             
             final_hotels = []
             hotel_map = {h.id: h for h in candidates}
             
-            for item in recommended_items:
-                h_id = item.get("hotel_id")
+            for item in validated_items:
+                h_id = item["hotel_id"]
                 if h_id in hotel_map:
                     hotel = hotel_map[h_id]
-                    hotel.match_score = item.get("match_score", 0)
+                    hotel.match_score = item["match_score"]
                     final_hotels.append(hotel)
                     
             if len(final_hotels) == 0:
@@ -216,10 +236,82 @@ class AIService(BaseService):
             return final_hotels[:limit]
             
         except Exception as e:
-            print(f"Lỗi AI Ranking: {e}")
-            # Xóa cache ngay lập tức nếu dữ liệu AI trả về bị rác
-            cache.delete_memoized(call_gemini_api, prompt)
+            cache.delete_memoized(call_gemini_api, prompt, "Recommendations")
+            return None
+
+    def get_occupancy_data_for_ai(self, hotels, target_dates):
+        hotel_data_for_ai = []
+        for hotel in hotels:
+            total_rooms = self.db.query(Room).join(Room.room_type).filter(
+                RoomType.hotel_id == hotel.id,
+                Room.is_active == True
+            ).count()
             
-            for h in candidates[:limit]:
-                h.match_score = 80
-            return candidates[:limit]
+            if total_rooms == 0:
+                continue
+                
+            occupancy_data = []
+            for target_date in target_dates:
+                booked_rooms = self.db.query(BookingDetail.room_id).join(Booking).filter(
+                    Booking.hotel_id == hotel.id,
+                    Booking.status == BookingStatus.CONFIRMED,
+                    Booking.check_in <= target_date,
+                    Booking.check_out > target_date
+                ).count()
+                
+                occupancy_rate = (booked_rooms / total_rooms) if total_rooms > 0 else 0
+                
+                occupancy_data.append({
+                    "date": target_date.strftime('%Y-%m-%d'),
+                    "total_rooms": total_rooms,
+                    "booked_rooms": booked_rooms,
+                    "occupancy_rate": f"{occupancy_rate:.0%}"
+                })
+                
+            hotel_data_for_ai.append({
+                "hotel_id": hotel.id,
+                "hotel_name": hotel.name,
+                "location": hotel.location,
+                "occupancy_forecast": occupancy_data
+            })
+            
+        return hotel_data_for_ai
+
+    def generate_price_predictions(self, hotels, target_dates):
+        hotel_data_for_ai = self.get_occupancy_data_for_ai(hotels, target_dates)
+            
+        if not hotel_data_for_ai:
+            return 0
+            
+        max_adj = SystemConfig.get_value('MAX_PRICE_ADJUSTMENT_PERCENTAGE', 20, type_func=int)
+        min_adj = -max_adj
+        
+        prompt = f"""
+        Bạn là một Giám đốc Doanh thu (Revenue Manager) chuyên nghiệp cho chuỗi khách sạn.
+        Dưới đây là dữ liệu dự báo công suất phòng (Occupancy Rate) trong thời gian tới của các khách sạn:
+        
+        {json.dumps(hotel_data_for_ai, ensure_ascii=False)}
+        
+        NHIỆM VỤ CỦA BẠN:
+        Phân tích công suất phòng, thời điểm (mùa, lễ, cuối tuần) và vị trí của từng khách sạn để đưa ra quyết định ĐIỀU CHỈNH GIÁ cho TỪNG NGÀY của TỪNG KHÁCH SẠN.
+        - Nếu công suất phòng rất cao (>80%) hoặc rơi vào cuối tuần/ngày lễ tại khu du lịch: Hãy tăng giá (từ 0.1 đến {max_adj/100} tương đương 10% đến {max_adj}%).
+        - Nếu công suất phòng thấp (<30%) hoặc ngày giữa tuần ế ẩm: Hãy giảm giá (từ -0.05 đến {min_adj/100} tương đương giảm 5% đến {max_adj}%).
+        - Nếu công suất bình thường: Có thể không cần điều chỉnh (từ 0.0).
+        
+        Trả về kết quả dưới dạng mảng JSON gồm các Object với các trường:
+        - hotel_id: ID của khách sạn
+        - target_date: Ngày áp dụng (YYYY-MM-DD)
+        - adjustment_percentage: Tỉ lệ điều chỉnh (ví dụ 0.15 là tăng 15%, -0.1 là giảm 10%)
+        - reason: Lý do ngắn gọn giải thích quyết định của bạn.
+        """
+        
+        try:
+            response_text = call_gemini_api(prompt, "PricePredictions")
+            parsed_data = json.loads(response_text)
+            validated_items = [PricePredictionItem(**item).model_dump() for item in parsed_data]
+            
+            return validated_items
+            
+        except Exception as e:
+            cache.delete_memoized(call_gemini_api, prompt, "PricePredictions")
+            return []

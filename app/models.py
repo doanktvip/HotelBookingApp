@@ -112,6 +112,12 @@ class Hotel(db.Model):
         return 0.0
 
     @property
+    def max_price(self):
+        if self.room_types:
+            return max([rt.base_price for rt in self.room_types])
+        return 0.0
+
+    @property
     def all_rooms(self):
         return [room for rt in self.room_types for room in rt.rooms]
 
@@ -270,7 +276,7 @@ class PricePrediction(db.Model):
     id = Column(Integer, primary_key=True)  # ID đề xuất
     hotel_id = Column(Integer, ForeignKey('hotels.id'), nullable=False)  # Áp dụng cho toàn bộ khách sạn
     target_date = Column(Date, nullable=False)  # Ngày áp dụng giá mới (Ví dụ: 30/04/2026)
-    adjustment_percentage = Column(Float, nullable=False)  # Tỉ lệ thay đổi giá so với giá gốc (VD: 0.1 = 10%)
+    adjustment_percentage = Column(DECIMAL(5, 4), nullable=False)  # Tỉ lệ thay đổi giá so với giá gốc (VD: 0.1 = 10%)
     reason = Column(String(255))  # Lý do đổi giá (Ví dụ: "Lễ 30/4", "Mùa thấp điểm")
     is_applied = Column(Boolean, default=False)  # Trạng thái: Admin đã click đồng ý áp dụng mức giá này chưa?
 
@@ -284,6 +290,7 @@ class SearchHistory(db.Model):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # Khách hàng nào tìm (Nếu chưa đăng nhập thì null)
     search_query = Column(Text, nullable=True)  # Câu truy vấn tự nhiên
     parsed_data = Column(db.JSON, nullable=True) # Dữ liệu đã parse từ câu truy vấn
+    is_useful = Column(Boolean, default=False) # Đánh dấu tìm kiếm này có ích để dùng cho Recommendation không
     searched_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời điểm tìm kiếm
 
 class PriceHistory(db.Model):

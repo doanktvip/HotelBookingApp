@@ -24,7 +24,7 @@
 {% endmacro %}
 
 <!-- 2. Room type Card đã sửa xong -->
-{% macro render_room_type_card(room_type, available_count=None, check_in_date='', check_out_date='') %}
+{% macro render_room_type_card(room_type, available_count=None, check_in_date='', check_out_date='', dynamic_price=None) %}
 {% if available_count is none %}
     {% set available_count = room_type.rooms|selectattr("status.name", "equalto", "AVAILABLE")|list|length %}
 {% endif %}
@@ -51,7 +51,13 @@
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h5 class="fw-bold mb-0 text-dark">{{ room_type.name }}</h5>
                     <div class="text-end ms-3">
-                        <span class="fs-5 fw-bold text-primary">{{ "{:,.0f}".format(room_type.base_price) }}đ</span>
+                        {% set show_price = dynamic_price if dynamic_price is not none else room_type.base_price %}
+                        {% set text_color = 'text-danger' if show_price < room_type.base_price else 'text-primary' %}
+                        
+                        {% if show_price < room_type.base_price %}
+                            <div class="text-muted text-decoration-line-through mb-1" style="font-size: 0.85rem;">{{ "{:,.0f}".format(room_type.base_price) }}đ</div>
+                        {% endif %}
+                        <span class="fs-5 fw-bold {{ text_color }}">{{ "{:,.0f}".format(show_price) }}đ</span>
                         <span class="text-muted" style="font-size: 0.8rem;">/ đêm</span>
                     </div>
                 </div>
@@ -205,9 +211,17 @@
 
         <!-- Giá -->
         <div class="mt-auto pt-2">
-            <span class="text-primary" style="font-size: 1rem;">từ </span>
-            <span class="text-primary fw-bold" style="font-size: 1.4rem;">{{ "{:,.0f}".format(hotel.min_price|default(0)) }} VNĐ</span>
-            <span class="text-muted" style="font-size: 0.85rem;"> /đêm</span>
+            {% set show_min = hotel.display_min_price if hotel.display_min_price is defined else hotel.min_price %}
+            {% set show_max = hotel.display_max_price if hotel.display_max_price is defined else hotel.max_price %}
+            
+            {% if show_max and show_min != show_max %}
+                <span class="text-primary fw-bold" style="font-size: 1.1rem;">{{ "{:,.0f}".format(show_min) }} - {{ "{:,.0f}".format(show_max) }} VNĐ</span>
+                <span class="text-muted" style="font-size: 0.85rem;"> /đêm</span>
+            {% else %}
+                <span class="text-primary" style="font-size: 1rem;">từ </span>
+                <span class="text-primary fw-bold" style="font-size: 1.3rem;">{{ "{:,.0f}".format(show_min|default(0)) }} VNĐ</span>
+                <span class="text-muted" style="font-size: 0.85rem;"> /đêm</span>
+            {% endif %}
         </div>
     </div>
 </a>
@@ -431,5 +445,21 @@
                value="{{ request.args.get('keyword', '') }}" required>
         {{ render_btn_submit('Hỏi AI', style='primary', icon_class='bi bi-stars', btn_class='px-4 mb-0 text-nowrap flex-shrink-0 ai-submit-btn') }}
     </form>
+</div>
+{% endmacro %}
+
+<!-- 20. AI Loading Spinner Component -->
+{% macro render_ai_loading_spinner(title="AI đang phân tích yêu cầu của bạn...", description="Quá trình này có thể mất vài giây để tìm ra các lựa chọn tốt nhất.", spinner_id="ai-loading-spinner", container_class="", container_style="") %}
+<div id="{{ spinner_id }}" class="d-flex flex-column justify-content-center align-items-center text-center {{ container_class }}" style="{{ container_style }}">
+    <div class="mb-3" style="animation: pulse 1.5s infinite;">
+        <i class="bi bi-robot text-primary" style="font-size: 3rem;"></i>
+    </div>
+    <h5 class="text-primary fw-bold mb-2">{{ title }}</h5>
+    {% if description %}
+    <p class="text-muted small mb-0">{{ description }}</p>
+    {% endif %}
+    <div class="spinner-border text-primary mt-3" role="status" style="width: 2.5rem; height: 2.5rem;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
 </div>
 {% endmacro %}

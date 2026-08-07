@@ -3,6 +3,7 @@ from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_caching import Cache
 from flask_mail import Mail
+from flask_apscheduler import APScheduler
 
 # Khởi tạo các extensions rỗng (Application Factory Pattern)
 db = SQLAlchemy()
@@ -10,6 +11,7 @@ login_manager = LoginManager()
 socketio = SocketIO()
 cache = Cache()
 mail = Mail()
+scheduler = APScheduler()
 
 
 # Cấu hình cơ bản cho login_manager
