@@ -1,0 +1,309 @@
+{% extends "layout/base.html" %}
+{% from "layout/macros.html" import render_status_badge, render_pagination %}
+{% import 'layout/macros.html' as ui %}
+
+{% block title %}Quản lý phòng - Lễ tân{% endblock %}
+
+{% block styles %}
+<style>
+    .room-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 1rem;
+    }
+    .room-card {
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .room-card:hover {
+        transform: translateY(-2px);
+    }
+    /* Các class hỗ trợ JavaScript Filter Tầng */
+    .floor-filter-btn {
+        transition: all 0.2s;
+    }
+    .floor-filter-btn.active {
+        background-color: var(--bs-primary) !important;
+        color: white !important;
+        border-color: var(--bs-primary) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% call ui.render_page_body('Quản lý Phòng - Lễ Tân', 'Xử lý check-in / check-out tại quầy') %}
+<div class="mt-4 pb-5">
+    <div class="mb-4">
+        {% set tab_items = [
+        {'active': true, 'target': 'rooms-content', 'icon': 'bi bi-grid', 'label': 'Sơ đồ phòng'},
+        {'active': false, 'target': 'bookings-content', 'icon': 'bi bi-list-task', 'label': 'Danh sách đơn'}
+        ] %}
+        {{ ui.render_segmented_control(tab_items) }}
+    </div>
+    <div class="tab-content" id="receptionTabsContent">
+        <!-- TAB 1: SƠ ĐỒ PHÒNG                             -->
+        <div class="tab-pane fade show active" id="rooms-content" role="tabpanel">
+            <!-- Thống kê trạng thái -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="bg-white border rounded-4 p-3 p-xl-4 d-flex align-items-center gap-3 shadow-sm h-100">
+                        <span class="bg-success rounded-circle flex-shrink-0" style="width: 14px; height: 14px;"></span>
+                        <div>
+                            <div class="fs-4 fw-bold text-dark mb-1 lh-1">{{ status_counts.get('AVAILABLE', 0) }}</div>
+                            <div class="text-secondary small mb-0">Còn trống</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="bg-white border rounded-4 p-3 p-xl-4 d-flex align-items-center gap-3 shadow-sm h-100">
+                        <span class="bg-warning rounded-circle flex-shrink-0" style="width: 14px; height: 14px;"></span>
+                        <div>
+                            <div class="fs-4 fw-bold text-dark mb-1 lh-1">{{ status_counts.get('BOOKED', 0) }}</div>
+                            <div class="text-secondary small mb-0">Đã đặt</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="bg-white border rounded-4 p-3 p-xl-4 d-flex align-items-center gap-3 shadow-sm h-100">
+                        <span class="bg-danger rounded-circle flex-shrink-0" style="width: 14px; height: 14px;"></span>
+                        <div>
+                            <div class="fs-4 fw-bold text-dark mb-1 lh-1">{{ status_counts.get('OCCUPIED', 0) }}</div>
+                            <div class="text-secondary small mb-0">Đang dùng</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="bg-white border rounded-4 p-3 p-xl-4 d-flex align-items-center gap-3 shadow-sm h-100">
+                        <span class="bg-secondary rounded-circle flex-shrink-0"
+                              style="width: 14px; height: 14px;"></span>
+                        <div>
+                            <div class="fs-4 fw-bold text-dark mb-1 lh-1">{{ status_counts.get('MAINTENANCE', 0) }}
+                            </div>
+                            <div class="text-secondary small mb-0">Bảo trì</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nút Lọc Tầng -->
+            <div class="d-flex align-items-center gap-2 mb-4 flex-wrap" id="floorFilters">
+                <span class="fw-medium text-secondary me-2">Tầng:</span>
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-medium floor-filter-btn active"
+                        onclick="filterFloors('all')">Tất cả
+                </button>
+
+                {% for floor in floors %}
+                <button type="button"
+                        class="btn btn-sm bg-white border text-secondary rounded-pill px-3 fw-medium floor-filter-btn"
+                        onclick="filterFloors('{{ floor }}')">T{{ floor }}
+                </button>
+                {% endfor %}
+            </div>
+
+            <!-- Sơ đồ từng tầng -->
+            {% for floor, rooms in rooms_by_floor.items() %}
+            <div class="bg-white border rounded-4 p-4 mb-4 shadow-sm floor-section" data-floor="{{ floor }}">
+                <h3 class="fs-6 fw-semibold text-secondary text-uppercase mb-3" style="letter-spacing: 0.05em;">Tầng {{
+                    floor }}</h3>
+                <div class="room-grid">
+                    {% for room in rooms %}
+                    {% set color_class = 'success' %}
+                    {% if room.actual_status == 'BOOKED' %}
+                    {% set color_class = 'warning' %}
+                    {% elif room.actual_status == 'OCCUPIED' %}
+                    {% set color_class = 'danger' %}
+                    {% elif room.actual_status == 'MAINTENANCE' %}
+                    {% set color_class = 'secondary' %}
+                    {# Vì màu secondary-subtle của BS5 hơi tối, ta dùng bg-light #}
+                    {% set is_maintenance = True %}
+                    {% endif %}
+
+                    <div class="room-card border border-{{ color_class }}-subtle {% if is_maintenance %}bg-light{% else %}bg-{{ color_class }}-subtle bg-opacity-50{% endif %} rounded-3 p-3 text-center d-flex flex-column align-items-center justify-content-center"
+                         title="Trạng thái: {{ room.actual_status }}">
+                        <div class="bg-{{ color_class }} rounded-circle mb-2 shadow-sm"
+                             style="width: 10px; height: 10px;"></div>
+                        <div class="fs-5 fw-bold text-dark mb-1 lh-1">{{ room.room_number }}</div>
+                        <!-- Cắt ngắn tên loại phòng nếu quá dài -->
+                        <div class="small text-secondary fw-medium">{{ room.room_type.name|truncate(12, True, '') }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- TAB 2: DANH SÁCH ĐƠN ĐẶT PHÒNG-->
+        <div class="tab-pane fade" id="bookings-content" role="tabpanel">
+            <div class="bg-white border rounded-4 p-4 shadow-sm">
+
+                <!-- Search Box -->
+                <form method="GET" action="{{ url_for('receptionist.recept') }}" class="mb-4" style="max-width: 400px;">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 rounded-start-pill text-secondary px-3">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" name="search" value="{{ request.args.get('search', '') }}"
+                               class="form-control bg-light border-start-0 rounded-end-pill shadow-none"
+                               placeholder="Tìm theo mã đơn, tên khách, SĐT...">
+                    </div>
+
+                    <input type="hidden" name="tab" value="list">
+                </form>
+
+                <!-- Bảng Dữ Liệu -->
+                <div class="table-responsive">
+                    <table class="table table-borderless align-middle mb-0">
+                        <thead class="border-bottom">
+                        <tr>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Mã đặt phòng
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Khách hàng
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">SĐT
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Phòng
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Nhận phòng
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Trả phòng
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Trạng thái
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Thao tác
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for booking in bookings.items %}
+                        <tr class="border-bottom border-light">
+                            <td class="fw-bold text-dark py-3">BK-{{ booking.id }}</td>
+                            <td class="fw-medium text-dark py-3">{{ booking.customer.username }}</td>
+                            <td class="text-secondary py-3">{{ booking.customer.phone or 'N/A' }}</td>
+                            <td class="fw-bold text-dark py-3">
+                                {{ booking.booking_details[0].room.room_number if booking.booking_details else 'Chưa
+                                xếp' }}
+                            </td>
+                            <td class="text-secondary py-3">{{ booking.check_in.strftime('%d/%m/%Y') }}</td>
+                            <td class="text-secondary py-3">{{ booking.check_out.strftime('%d/%m/%Y') }}</td>
+                            <td class="py-3">
+                                {% if booking.is_currently_staying %}
+                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-bold border border-danger-subtle">Đang dùng</span>
+                                {% else %}
+                                {{ render_status_badge(booking.status.name) }}
+                                {% endif %}
+                            </td>
+                            <td class="py-3">
+                                <form method="POST"
+                                      action="{{ url_for('receptionist.update_booking_status', booking_id=booking.id) }}"
+                                      class="m-0 p-0 d-inline">
+                                    {% if booking.status.name == 'CONFIRMED' and booking.check_in <= today %}
+                                    <button type="submit" name="action" value="checkin"
+                                            class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 rounded-2 px-3 fw-medium shadow-sm">
+                                        <i class="bi bi-check-circle"></i> Check-in
+                                    </button>
+                                    {% elif booking.is_currently_staying %}
+                                    <button type="submit" name="action" value="checkout"
+                                            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 rounded-2 px-3 fw-medium shadow-sm">
+                                        <i class="bi bi-box-arrow-right"></i> Check-out
+                                    </button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+                                Không có đơn đặt phòng nào
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Phân Trang (Kết hợp Layout & Macro) -->
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                    <div class="text-secondary small">
+                        Hiển thị <span class="fw-bold text-dark">{{ bookings.items|length }}</span> / <span
+                            class="fw-bold text-dark">{{ bookings.total }}</span> đơn
+                    </div>
+                    <div>
+                        {{ render_pagination(bookings, 'receptionist.recept', search=request.args.get('search', ''),
+                        tab='list') }}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endcall %}
+{% endblock %}
+{% block scripts %}
+<script>
+    // 1. XỬ LÝ LỌC TẦNG Ở TAB SƠ ĐỒ PHÒNG
+    function filterFloors(floor) {
+        const sections = document.querySelectorAll('.floor-section');
+        const filterBtns = document.querySelectorAll('.floor-filter-btn');
+
+        // Reset giao diện của tất cả các nút lọc về màu trắng
+        filterBtns.forEach(btn => {
+            btn.classList.remove('btn-primary', 'active');
+            btn.classList.add('bg-white', 'text-secondary', 'border');
+        });
+
+        // Bôi xanh nút vừa được bấm
+        let activeBtn = floor === 'all'
+            ? document.querySelector(".floor-filter-btn[onclick*='all']")
+            : document.querySelector(`.floor-filter-btn[onclick*='${floor}']`);
+
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-white', 'text-secondary', 'border');
+            activeBtn.classList.add('btn-primary', 'active');
+        }
+
+        // Ẩn/hiện các khu vực Tầng bên dưới
+        sections.forEach(section => {
+            section.style.display = (floor === 'all' || section.dataset.floor === floor.toString()) ? 'block' : 'none';
+        });
+    }
+
+    // 2. GIỮ NGUYÊN TAB DANH SÁCH ĐƠN KHI PHÂN TRANG / TÌM KIẾM
+    document.addEventListener("DOMContentLoaded", function() {
+        // Đọc tham số trên thanh địa chỉ (URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('tab');
+
+        // Nếu trên URL có chữ ?tab=list (do nút phân trang sinh ra)
+        if (activeTab === 'list') {
+            // Tìm cái nút của Tab Danh sách đơn và yêu cầu Bootstrap mở nó lên
+            const tabBtn = document.querySelector('button[data-bs-target="#bookings-content"]');
+            if (tabBtn) {
+                const tabInstance = new bootstrap.Tab(tabBtn);
+                tabInstance.show();
+            }
+        }
+    });
+</script>
+
+<script src="{{ url_for('static', filename='js/socket_client.js') }}"></script>
+<script>
+    if (typeof socket !== 'undefined') {
+        socket.on('room_status_changed', function(data) {
+            console.log("Cập nhật sơ đồ phòng real-time...");
+            // Tuỳ chọn: Tải lại trang khi có người check-in ở máy tính khác
+            // window.location.reload();
+        });
+    }
+</script>
+{% endblock %}
