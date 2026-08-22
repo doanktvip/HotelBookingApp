@@ -1,5 +1,6 @@
 from flask import request
 from app.models import Tag
+from app.extensions import db
 
 class BaseService:
     def __init__(self, db_session):
@@ -14,7 +15,7 @@ class BaseService:
 
     def get_paginated(self, query, default_per_page=12):
         page = request.args.get('page', 1, type=int)
-        return query.paginate(page=page, per_page=default_per_page, error_out=False)
+        return db.paginate(query.statement, page=page, per_page=default_per_page, error_out=False)
 
     def get_limit(self, query, limit=4):
         return query.limit(limit).all()

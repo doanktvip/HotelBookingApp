@@ -293,12 +293,18 @@ class AIService(BaseService):
         {json.dumps(hotel_data_for_ai, ensure_ascii=False)}
         
         NHIỆM VỤ CỦA BẠN:
-        Phân tích công suất phòng, thời điểm (mùa, lễ, cuối tuần) và vị trí của từng khách sạn để đưa ra quyết định ĐIỀU CHỈNH GIÁ cho TỪNG NGÀY của TỪNG KHÁCH SẠN.
+        Phân tích công suất phòng, thời điểm (mùa, lễ, cuối tuần) và vị trí của từng khách sạn để đưa ra quyết định ĐIỀU CHỈNH GIÁ.
+        
+        LƯU Ý CỰC KỲ QUAN TRỌNG (HẠN MỨC ĐỀ XUẤT):
+        - BẠN CHỈ ĐƯỢC PHÉP CHỌN RA TỐI ĐA 20 TRƯỜNG HỢP CẦN THIẾT NHẤT ĐỂ ĐIỀU CHỈNH GIÁ.
+        - Hãy ưu tiên những ngày/khách sạn có công suất cực cao (cần tăng giá) hoặc cực thấp (cần giảm giá) để tối ưu doanh thu nhất.
+        - BỎ QUA hoàn toàn những trường hợp công suất ở mức trung bình ổn định (không cần điều chỉnh).
+        
+        QUY TẮC ĐIỀU CHỈNH (CHO NHỮNG TRƯỜNG HỢP ĐƯỢC CHỌN):
         - Nếu công suất phòng rất cao (>80%) hoặc rơi vào cuối tuần/ngày lễ tại khu du lịch: Hãy tăng giá (từ 0.1 đến {max_adj/100} tương đương 10% đến {max_adj}%).
         - Nếu công suất phòng thấp (<30%) hoặc ngày giữa tuần ế ẩm: Hãy giảm giá (từ -0.05 đến {min_adj/100} tương đương giảm 5% đến {max_adj}%).
-        - Nếu công suất bình thường: Có thể không cần điều chỉnh (từ 0.0).
         
-        Trả về kết quả dưới dạng mảng JSON gồm các Object với các trường:
+        Trả về kết quả dưới dạng mảng JSON (TỐI ĐA 20 PHẦN TỬ) gồm các Object với các trường:
         - hotel_id: ID của khách sạn
         - target_date: Ngày áp dụng (YYYY-MM-DD)
         - adjustment_percentage: Tỉ lệ điều chỉnh (ví dụ 0.15 là tăng 15%, -0.1 là giảm 10%)
@@ -308,6 +314,7 @@ class AIService(BaseService):
         try:
             response_text = call_gemini_api(prompt, "PricePredictions")
             parsed_data = json.loads(response_text)
+            
             validated_items = [PricePredictionItem(**item).model_dump() for item in parsed_data]
             
             return validated_items

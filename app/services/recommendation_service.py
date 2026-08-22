@@ -8,7 +8,7 @@ from app.services.ai_service import AIService
 class RecommendationService(BaseService):
     
     def _get_recent_searches(self, user_id=None, limit=50):
-        query = SearchHistory.query.filter(SearchHistory.is_useful == True)
+        query = self.db.query(SearchHistory).filter(SearchHistory.is_useful == True)
         if user_id:
             query = query.filter(SearchHistory.user_id == user_id)
         return query.order_by(SearchHistory.searched_at.desc()).limit(limit).all()

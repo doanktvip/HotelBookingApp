@@ -6,7 +6,7 @@ from app.services.prediction_service import PredictionService
 from app.utils import get_vn_time
 from datetime import timedelta
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.before_request
 @login_required

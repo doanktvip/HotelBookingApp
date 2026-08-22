@@ -46,7 +46,7 @@ class BookingService(BaseService):
             Booking.status == BookingStatus.CONFIRMED,
             Booking.check_in < check_out_date,
             Booking.check_out > check_in_date
-        ).subquery()
+        )
         
         query = self.db.query(Room).filter(
             Room.room_type_id == room_type_id,
