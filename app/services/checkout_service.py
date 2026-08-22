@@ -11,7 +11,7 @@ class CheckoutService(BaseService):
         current_time = get_vn_time().time()
         checkout_time_limit = time(12, 0)
         #Đơn quá hạn
-        expired_bookings = Booking.query.filter(Booking.hotel_id == hotel_id,
+        expired_bookings = self.db.query(Booking).filter(Booking.hotel_id == hotel_id,
            or_(
                 Booking.check_out < today,
                 and_(Booking.check_out == today, current_time >= checkout_time_limit)
@@ -33,10 +33,12 @@ class CheckoutService(BaseService):
                 updated = True
 
         if updated:
-            self.db.session.commit()
+            self.commit_or_rollback()
 
     def update_status_at_counter(self, booking_id, hotel_id, action):
-        booking = Booking.query.get_or_404(booking_id)
+        booking = self.get_by_id(Booking, booking_id)
+        if not booking:
+            abort(404)
 
         if booking.hotel_id != hotel_id:
             abort(403)
@@ -46,7 +48,7 @@ class CheckoutService(BaseService):
                 room = detail.room
                 if room:
                     room.status = RoomStatus.OCCUPIED
-            self.db.session.commit()
+            self.commit_or_rollback()
 
         elif action == 'checkout':
             booking.status = BookingStatus.COMPLETED
@@ -54,4 +56,4 @@ class CheckoutService(BaseService):
                 room = detail.room
                 if room:
                     room.status = RoomStatus.AVAILABLE
-            self.db.session.commit()
+            self.commit_or_rollback()

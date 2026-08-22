@@ -4,6 +4,7 @@ from app.models import SearchHistory
 from app.services import BaseService
 from app.services.ai_service import AIService, SearchQuerySchema
 from app.services.hotel_service import HotelService
+from app.extensions import db
 
 class SearchService(BaseService):
     
@@ -58,8 +59,8 @@ class SearchService(BaseService):
 
 
     def search_booking_in_recept(self, hotel_id, search_keyword='', page=1, per_page=10):
-        booking_query = Booking.query.join(User, Booking.user_id == User.id).filter(Booking.hotel_id == hotel_id)
-        search_keyword = search_keyword.strip()
+        booking_query = self.db.query(Booking).join(User, Booking.user_id == User.id).filter(Booking.hotel_id == hotel_id)
+        search_keyword = (search_keyword or '').strip()
         if search_keyword:
             search_id_str = search_keyword.upper().replace('BK-', '').strip()
             if search_id_str.isdigit():
@@ -81,7 +82,7 @@ class SearchService(BaseService):
                 )
         # Sắp xếp và phân trang
         booking_query = booking_query.order_by(Booking.check_in.desc())
-        bookings_pagination = booking_query.paginate(page=page, per_page=per_page, error_out=False)
+        bookings_pagination = db.paginate(booking_query.statement, page=page, per_page=per_page, error_out=False)
 
         # Tính toán trạng thái "Đang ở"
         for booking in bookings_pagination.items:
