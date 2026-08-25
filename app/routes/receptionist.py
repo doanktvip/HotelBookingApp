@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, redirect, url_for
+from flask import Blueprint, render_template, request, abort, redirect, url_for, flash
 from flask_login import login_required,current_user
 
 from app.services.search_service import SearchService
@@ -71,9 +71,16 @@ def update_booking_status(booking_id):
         abort(403)
 
     action = request.form.get('action')
-
     checkout_service = CheckoutService(db.session)
-    checkout_service.update_status_at_counter(booking_id, current_user.hotel_id, action)
+    try:
+        checkout_service.update_status_at_counter(booking_id,current_user.hotel_id,action)
+        if action == "checkin":
+            flash("Check-in thành công.", "success")
+        elif action == "checkout":
+            flash("Checkout thành công.", "success")
 
-    return redirect(url_for('receptionist.recept', tab='list'))
+    except ValueError as e:
+        flash(str(e), "danger")
+
+    return redirect( url_for('receptionist.recept',tab='list'))
 
