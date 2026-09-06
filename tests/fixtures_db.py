@@ -1,13 +1,16 @@
 import pytest
 from datetime import date, timedelta
 from decimal import Decimal
-from werkzeug.security import generate_password_hash
+import hashlib
 from app.models import (
     User, UserRole, Hotel, RoomType, Room, RoomStatus,
     Booking, BookingStatus, BookingDetail, Payment, PaymentMethod, PaymentStatus,
     Tag, SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory, RefundLog
 )
 
+import uuid
+from app.utils import get_vn_time
+PASSWORD='123456'
 # ==============================================================================
 # TẦNG CORE (LEVEL 1) - DỮ LIỆU ĐỘC LẬP
 # ==============================================================================
@@ -18,7 +21,7 @@ def sample_customer(test_session):
     user = User(
         username="customer",
         email="customer@gmail.com",
-        password=generate_password_hash("123456"),
+        password=str(hashlib.md5(PASSWORD.strip().encode('utf-8')).hexdigest()),
         role=UserRole.CUSTOMER,
         is_verified=True
     )
@@ -33,7 +36,7 @@ def sample_admin(test_session):
     user = User(
         username="admin",
         email="admin@hotel.com",
-        password=generate_password_hash("123456"),
+        password=str(hashlib.md5(PASSWORD.strip().encode('utf-8')).hexdigest()),
         role=UserRole.ADMIN,
         is_verified=True
     )
@@ -48,7 +51,7 @@ def sample_receptionist(test_session):
     user = User(
         username="recept",
         email="recept@hotel.com",
-        password=generate_password_hash("123456"),
+        password=str(hashlib.md5(PASSWORD.strip().encode('utf-8')).hexdigest()),
         role=UserRole.RECEPTIONIST,
         is_verified=True
     )
@@ -277,3 +280,140 @@ def sample_refund_log(test_session):
     test_session.add(refund)
     test_session.commit()
     return refund
+
+# === MIGRATED UI FIXTURES ===
+@pytest.fixture(scope='function')
+def setup_recept_data(test_db, sample_customer, sample_room_type, sample_rooms):
+    
+    # Create Receptionist
+    pw_hash = str(hashlib.md5("123456".encode('utf-8')).hexdigest())
+    recept = User(username="receptionist_manage", email="recept@manage.com", password=pw_hash, role=UserRole.RECEPTIONIST, phone="0999999999", hotel_id=sample_room_type.hotel_id)
+    
+    # Create Owner (for TC4)
+    owner = User(username="owner_manage", email="owner@manage.com", password=pw_hash, role=UserRole.ADMIN, phone="0888888888", hotel_id=sample_room_type.hotel_id)
+    test_db.session.add_all([recept, owner])
+    test_db.session.commit()
+    
+    def _create(scenario):
+        hotel = sample_room_type.hotel
+        today = get_vn_time().date()
+        
+        status = BookingStatus.CONFIRMED
+        check_in = today
+        room_status = RoomStatus.AVAILABLE
+        
+        if scenario == 'confirmed_today':
+            pass
+        elif scenario == 'occupied':
+            status = BookingStatus.CONFIRMED
+            room_status = RoomStatus.OCCUPIED
+        elif scenario == 'cancelled':
+            status = BookingStatus.CANCELLED
+        elif scenario == 'completed':
+            status = BookingStatus.COMPLETED
+            
+        b = Booking(
+            customer=sample_customer,
+            hotel=hotel,
+            room_type=sample_room_type,
+            check_in=check_in,
+            check_out=check_in + timedelta(days=2),
+            total_price=3000000,
+            status=status
+        )
+        test_db.session.add(b)
+        test_db.session.commit()
+        
+        room = sample_rooms[0]
+        room.status = room_status
+        
+        detail = BookingDetail(booking_id=b.id, room_id=room.id, price_at_booking=1500000)
+        payment = Payment(booking_id=b.id, amount=b.total_price, transaction_id=str(uuid.uuid4())[:8], payment_method='MOMO')
+        test_db.session.add(detail)
+        test_db.session.add(payment)
+        test_db.session.commit()
+        
+        return b.id
+        
+    return recept, owner, _create
+
+
+@pytest.fixture(scope='function')
+def specific_room_setup(test_session, sample_hotel):
+    """Setup các loại phòng với tình trạng trống khác nhau"""
+    
+    # Loại phòng A: Còn trống 3 phòng
+    rt_a = RoomType(hotel=sample_hotel, name="Room Type A", base_price=Decimal("1000000"), max_occupancy=2, bed_count=1)
+    
+    # Loại phòng B: Không còn phòng nào
+    rt_b = RoomType(hotel=sample_hotel, name="Room Type B", base_price=Decimal("2000000"), max_occupancy=2, bed_count=1)
+    
+    # Loại phòng C: Có phòng bảo trì
+    rt_c = RoomType(hotel=sample_hotel, name="Room Type C", base_price=Decimal("3000000"), max_occupancy=2, bed_count=1)
+    
+    test_session.add_all([rt_a, rt_b, rt_c])
+    test_session.commit()
+    
+    rooms = [
+        Room(room_type=rt_a, room_number="A1", status=RoomStatus.AVAILABLE),
+        Room(room_type=rt_a, room_number="A2", status=RoomStatus.AVAILABLE),
+        Room(room_type=rt_a, room_number="A3", status=RoomStatus.AVAILABLE),
+        
+        # rt_b có 1 phòng nhưng bị chiếm (OCCUPIED)
+        Room(room_type=rt_b, room_number="B1", status=RoomStatus.OCCUPIED),
+        
+        # rt_c có 1 phòng bảo trì
+        Room(room_type=rt_c, room_number="C1", status=RoomStatus.MAINTENANCE)
+    ]
+    test_session.add_all(rooms)
+    test_session.commit()
+    return rt_a, rt_b, rt_c
+
+
+@pytest.fixture(scope='function')
+def create_booking(test_db, sample_customer, sample_room_type, sample_rooms):
+    def _create(scenario):
+        hotel = sample_room_type.hotel
+        today = get_vn_time().date()
+        policy_days = hotel.cancellation_policy_days
+        
+        status = BookingStatus.CONFIRMED
+        check_in = today + timedelta(days=10)
+        
+        if scenario == 'valid_far':
+            check_in = today + timedelta(days=policy_days + 3)
+        elif scenario == 'valid_edge':
+            check_in = today + timedelta(days=policy_days)
+        elif scenario == 'invalid_close':
+            check_in = today + timedelta(days=policy_days - 1)
+        elif scenario == 'checked_in':
+            check_in = today - timedelta(days=1)
+            status = BookingStatus.COMPLETED
+        elif scenario == 'checked_out':
+            check_in = today - timedelta(days=3)
+            status = BookingStatus.COMPLETED
+        elif scenario == 'cancelled':
+            status = BookingStatus.CANCELLED
+            
+        b = Booking(
+            customer=sample_customer,
+            hotel=hotel,
+            room_type=sample_room_type,
+            check_in=check_in,
+            check_out=check_in + timedelta(days=2),
+            total_price=3000000,
+            status=status
+        )
+        test_db.session.add(b)
+        test_db.session.commit()
+        
+        detail = BookingDetail(booking_id=b.id, room_id=sample_rooms[0].id, price_at_booking=1500000)
+        payment = Payment(booking_id=b.id, amount=b.total_price, transaction_id=str(uuid.uuid4())[:8], payment_method='MOMO')
+        test_db.session.add(detail)
+        test_db.session.add(payment)
+        test_db.session.commit()
+        
+        return b.id
+    return _create
+
+

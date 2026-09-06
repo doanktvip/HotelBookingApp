@@ -5,6 +5,8 @@ from app.services import BaseService
 from app.services.ai_service import AIService, SearchQuerySchema
 from app.services.hotel_service import HotelService
 from app.extensions import db
+from datetime import datetime
+from app.utils import get_vn_time
 
 class SearchService(BaseService):
     
@@ -58,7 +60,7 @@ class SearchService(BaseService):
         self.commit_or_rollback()
 
 
-    def search_booking_in_recept(self, hotel_id, search_keyword='', page=1, per_page=10):
+    def search_booking_in_recept(self, hotel_id, search_keyword='', status='ALL', check_in_date='', page=1, per_page=10):
         booking_query = self.db.query(Booking).join(User, Booking.user_id == User.id).filter(Booking.hotel_id == hotel_id)
         search_keyword = (search_keyword or '').strip()
         if search_keyword:
@@ -80,6 +82,21 @@ class SearchService(BaseService):
                         User.phone.ilike(f'%{search_keyword}%')
                     )
                 )
+
+        if status and status != 'ALL':
+            from app.models import BookingStatus
+            try:
+                enum_status = BookingStatus[status]
+                booking_query = booking_query.filter(Booking.status == enum_status)
+            except KeyError:
+                pass
+
+        if check_in_date:
+            if check_in_date.lower() == 'today':
+                date_obj = get_vn_time().date()
+            else:
+                date_obj = datetime.strptime(check_in_date, '%Y-%m-%d').date()
+            booking_query = booking_query.filter(Booking.check_in == date_obj)
         # Sắp xếp và phân trang
         booking_query = booking_query.order_by(Booking.check_in.desc())
         bookings_pagination = db.paginate(booking_query.statement, page=page, per_page=per_page, error_out=False)
