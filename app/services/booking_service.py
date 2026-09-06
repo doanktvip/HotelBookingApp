@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from app.utils import get_vn_time
 from sqlalchemy.orm import joinedload
 from app.services.momo_service import MoMoService
+from app.services.email_service import EmailService
 
 class BookingService(BaseService):
     def parse_and_validate_dates(self, check_in_str, check_out_str):
@@ -124,8 +125,8 @@ class BookingService(BaseService):
             'check_out': check_out.strftime('%d/%m/%Y'),
             'quantity': quantity,
             'price_at_booking': float(room_type.base_price),  # Giá gốc để tính toán
-            'average_daily_price': avg_daily,  # Giá trung bình đã qua AI để hiển thị cho khách
-            'total_price': total_price
+            'average_daily_price': float(avg_daily),  # Giá trung bình đã qua AI để hiển thị cho khách
+            'total_price': float(total_price)
         }
 
     def create_booking(self, user_id, hotel_id, room_type_id, check_in, check_out, quantity, price_at_booking, commit=True):
@@ -213,6 +214,12 @@ class BookingService(BaseService):
         )
         self.db.add(payment)
         self.commit_or_rollback()
+        
+        # Gửi email xác nhận đặt phòng (chạy ngầm trong Thread)
+        try:
+            EmailService.send_booking_confirmation_email(new_booking, new_booking.customer)
+        except Exception as e:
+            print(f"[BookingService] Lỗi khi gọi send_booking_confirmation_email: {e}")
         
         return new_booking
 

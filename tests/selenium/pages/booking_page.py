@@ -3,9 +3,6 @@ from .base_page import BasePage
 from selenium.webdriver.support.ui import Select
 
 class BookingPage(BasePage):
-    """Page Object Model for the Booking Confirmation Page"""
-    
-    # Locators
     CUSTOMER_NAME_INPUT = (By.ID, "name")
     CUSTOMER_EMAIL_INPUT = (By.ID, "email")
     CUSTOMER_PHONE_INPUT = (By.ID, "phone")

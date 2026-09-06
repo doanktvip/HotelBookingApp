@@ -5,7 +5,6 @@ from tests.selenium.pages.home_page import HomePage
 from selenium.webdriver.common.by import By
 
 def test_logout_success(live_server, selenium_driver, test_db, sample_customer):
-    """TC20: Đăng xuất thành công"""
     # 1. Login trước
     auth_page = AuthPage(selenium_driver)
     auth_page.open_page(live_server.url)
@@ -22,7 +21,6 @@ def test_logout_success(live_server, selenium_driver, test_db, sample_customer):
     assert selenium_driver.current_url == live_server.url + "/" or "login" in selenium_driver.current_url
 
 def test_access_protected_after_logout(live_server, selenium_driver, test_db, sample_customer):
-    """TC21: Truy cập trang bảo mật sau khi Đăng xuất"""
     # 1. Login
     auth_page = AuthPage(selenium_driver)
     auth_page.open_page(live_server.url)

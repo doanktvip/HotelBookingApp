@@ -4,7 +4,6 @@ from tests.selenium.pages.base_page import BasePage
 class HomePage(BasePage):
     URL = "/"
     
-    # Locators
     HERO_TITLE = (By.CSS_SELECTOR, ".hero-section h1")
     SEARCH_BUTTON = (By.CSS_SELECTOR, "form.search-form button[type='submit']")
 

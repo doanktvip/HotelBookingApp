@@ -6,7 +6,6 @@ from tests.selenium.pages.auth_page import AuthPage
 # Giả sử trong fixtures_db có tài khoản 'customer', pass '123456' (hoặc 'Aa@123456').
 
 def test_login_success(live_server, selenium_driver, test_db, sample_customer):
-    """TC10: Đăng nhập thành công"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     
@@ -17,7 +16,6 @@ def test_login_success(live_server, selenium_driver, test_db, sample_customer):
 
 
 def test_login_missing_username(live_server, selenium_driver, test_db):
-    """TC11: Thiếu thông tin username"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     
@@ -27,7 +25,6 @@ def test_login_missing_username(live_server, selenium_driver, test_db):
     assert username_input.get_attribute("validationMessage") != ""
 
 def test_login_invalid_username(live_server, selenium_driver):
-    """TC12: Username không tồn tại"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     
@@ -37,7 +34,6 @@ def test_login_invalid_username(live_server, selenium_driver):
     assert "không tồn tại" in toast_msg or toast_msg != ""
 
 def test_login_missing_password(live_server, selenium_driver):
-    """TC13: Thiếu thông tin password"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     
@@ -47,7 +43,6 @@ def test_login_missing_password(live_server, selenium_driver):
     assert pw_input.get_attribute("validationMessage") != ""
 
 def test_login_invalid_password(live_server, selenium_driver):
-    """TC14: Sai mật khẩu"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     

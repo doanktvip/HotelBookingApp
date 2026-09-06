@@ -3,11 +3,9 @@ from unittest.mock import patch, MagicMock
 from app.services.momo_service import MoMoService
 
 def test_encode_decode_extra_data():
-    """Test chức năng đóng gói và mở gói dữ liệu bằng Base64"""
     booking_dict = {"booking_id": 123, "user_id": 456}
     encoded = MoMoService.encode_extra_data(booking_dict)
     
-    # Phải là chuỗi string base64
     assert isinstance(encoded, str)
     assert encoded != ""
     
@@ -15,12 +13,10 @@ def test_encode_decode_extra_data():
     assert decoded["booking_id"] == 123
     assert decoded["user_id"] == 456
     
-    # Test ngoại lệ (dữ liệu rỗng hoặc sai chuẩn)
     assert MoMoService.decode_extra_data("") == {}
     assert MoMoService.decode_extra_data("invalid_base64_!@#") == {}
 
 def test_generate_signature():
-    """Test sinh chữ ký điện tử HMAC-SHA256"""
     secret_key = "my_secret_key"
     data = "amount=50000&orderId=123"
     sig = MoMoService.generate_signature(data, secret_key)
@@ -30,8 +26,6 @@ def test_generate_signature():
 
 @patch('app.services.momo_service.requests.post')
 def test_create_payment_request_success(mock_post, test_app):
-    """Test giả lập gửi yêu cầu thanh toán tới MoMo"""
-    # 1. Giả lập MoMo trả về link thanh toán
     mock_response = MagicMock()
     mock_response.json.return_value = {"payUrl": "https://momo.vn/pay/test", "resultCode": 0}
     mock_post.return_value = mock_response
@@ -61,7 +55,6 @@ def test_create_payment_request_success(mock_post, test_app):
         mock_post.assert_called_once()
 
 def test_verify_ipn_signature(test_app):
-    """Test xác thực chữ ký dữ liệu trả về từ MoMo (IPN)"""
     with test_app.app_context():
         test_app.config['MOMO_ACCESS_KEY'] = "ACCESS"
         test_app.config['MOMO_SECRET_KEY'] = "SECRET"
@@ -101,7 +94,6 @@ def test_verify_ipn_signature(test_app):
         assert MoMoService.verify_ipn_signature(ipn_data) is False
 
 def test_refund_payment_mock(test_app):
-    """Test cơ chế tự động xử lý khi hoàn tiền ảo (MOCK)"""
     with test_app.app_context():
         test_app.config['MOMO_PARTNER_CODE'] = "PARTNER"
         test_app.config['MOMO_ACCESS_KEY'] = "ACCESS"

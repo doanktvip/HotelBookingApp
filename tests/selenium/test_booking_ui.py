@@ -16,12 +16,7 @@ def wait_for_toast(selenium_driver):
     except:
         return ""
 
-# ==============================================================================
-# GROUP 1: CHỌN NGÀY ĐỂ TÌM KIẾM (TC1 - TC4)
-# ==============================================================================
-
 def test_default_dates(live_server, selenium_driver, sample_hotel, specific_room_setup):
-    """TC1: Hiển thị khoảng ngày mặc định khi người dùng chưa chọn ngày nhận và trả phòng"""
     page = HotelDetailPage(selenium_driver)
     
     # Warm up để tránh 500 error lần đầu tiên
@@ -37,12 +32,10 @@ def test_default_dates(live_server, selenium_driver, sample_hotel, specific_room
     
     today = date.today().strftime('%Y-%m-%d')
     assert check_in == today, f"Expected check_in {today}, got {check_in}"
-    # check_out mặc định là hôm sau
     expected_check_out = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
     assert check_out == expected_check_out, f"Expected check_out {expected_check_out}, got {check_out}"
 
 def test_auto_correct_past_check_in(live_server, selenium_driver, sample_hotel, specific_room_setup):
-    """TC2: Tự điều chỉnh ngày nhận phòng về ngày hiện tại khi truyền ngày trong quá khứ"""
     page = HotelDetailPage(selenium_driver)
     page.open_page(live_server.url, sample_hotel.id)
     
@@ -59,7 +52,6 @@ def test_auto_correct_past_check_in(live_server, selenium_driver, sample_hotel, 
     assert check_in == today, f"Expected check_in to be corrected to {today}, got {check_in}"
 
 def test_auto_correct_same_check_in_out(live_server, selenium_driver, sample_hotel, specific_room_setup):
-    """TC3: Tự điều chỉnh ngày trả phòng thành ngày kế tiếp khi ngày trả phòng bằng ngày nhận phòng"""
     page = HotelDetailPage(selenium_driver)
     page.open_page(live_server.url, sample_hotel.id)
     
@@ -72,7 +64,6 @@ def test_auto_correct_same_check_in_out(live_server, selenium_driver, sample_hot
     assert check_out == expected_check_out
 
 def test_auto_correct_invalid_check_out(live_server, selenium_driver, sample_hotel, specific_room_setup):
-    """TC4: Tự điều chỉnh ngày trả phòng thành ngày kế tiếp khi ngày trả phòng trước ngày nhận phòng"""
     page = HotelDetailPage(selenium_driver)
     page.open_page(live_server.url, sample_hotel.id)
     
@@ -84,13 +75,7 @@ def test_auto_correct_invalid_check_out(live_server, selenium_driver, sample_hot
     expected_check_out = (date.today() + timedelta(days=2)).strftime('%Y-%m-%d')
     assert check_out == expected_check_out
 
-
-# ==============================================================================
-# GROUP 2: KIỂM TRA ĐẶT PHÒNG (TC5 - TC10)
-# ==============================================================================
-
 def test_maintenance_room(live_server, selenium_driver, sample_hotel, specific_room_setup):
-    """TC7: Không tính phòng đang bảo trì là phòng trống"""
     rt_a, rt_b, rt_c = specific_room_setup
     page = HotelDetailPage(selenium_driver)
     page.open_page(live_server.url, sample_hotel.id)
@@ -100,7 +85,6 @@ def test_maintenance_room(live_server, selenium_driver, sample_hotel, specific_r
     assert page.is_book_button_disabled(rt_c.id)
 
 def test_no_available_room(live_server, selenium_driver, sample_hotel, specific_room_setup):
-    """TC9: Hiển thị Đã hết và khóa nút đặt phòng khi loại phòng không còn phòng trống"""
     rt_a, rt_b, rt_c = specific_room_setup
     page = HotelDetailPage(selenium_driver)
     page.open_page(live_server.url, sample_hotel.id)
@@ -110,7 +94,6 @@ def test_no_available_room(live_server, selenium_driver, sample_hotel, specific_
     assert page.is_book_button_disabled(rt_b.id)
 
 def test_show_correct_available_count(live_server, selenium_driver, sample_hotel, specific_room_setup):
-    """TC10: Hiển thị đúng số phòng còn trống"""
     rt_a, rt_b, rt_c = specific_room_setup
     page = HotelDetailPage(selenium_driver)
     page.open_page(live_server.url, sample_hotel.id)
@@ -119,13 +102,7 @@ def test_show_correct_available_count(live_server, selenium_driver, sample_hotel
     assert "Còn 3 trống" in badge_text
     assert not page.is_book_button_disabled(rt_a.id)
 
-
-# ==============================================================================
-# GROUP 3: XÁC NHẬN THÔNG TIN ĐẶT PHÒNG (TC11 - TC16)
-# ==============================================================================
-
 def test_readonly_user_info(live_server, selenium_driver, sample_customer, sample_room_type):
-    """TC11: Hiển thị thông tin khách hàng từ tài khoản hiện tại ở chế độ chỉ đọc"""
     auth_page = AuthPage(selenium_driver)
     auth_page.open_page(live_server.url)
     auth_page.login("customer", "123456")
@@ -139,7 +116,6 @@ def test_readonly_user_info(live_server, selenium_driver, sample_customer, sampl
     assert info["email"] == "customer@gmail.com"
 
 def test_correct_room_info(live_server, selenium_driver, sample_customer, sample_room_type):
-    """TC12: Hiển thị đúng loại phòng, khách sạn và giá cơ bản"""
     auth_page = AuthPage(selenium_driver)
     auth_page.open_page(live_server.url)
     auth_page.login("customer", "123456")
@@ -154,7 +130,6 @@ def test_correct_room_info(live_server, selenium_driver, sample_customer, sample
     assert expected_price in page.get_base_price()
 
 def test_limit_quantity(live_server, selenium_driver, sample_customer, specific_room_setup):
-    """TC13: Giới hạn số lượng phòng theo số phòng còn trống"""
     rt_a, rt_b, rt_c = specific_room_setup
     
     auth_page = AuthPage(selenium_driver)
@@ -170,7 +145,6 @@ def test_limit_quantity(live_server, selenium_driver, sample_customer, specific_
 
 @patch('app.routes.booking.MoMoService.create_payment_request')
 def test_accept_valid_booking(mock_create_payment, live_server, selenium_driver, sample_customer, specific_room_setup):
-    """TC14 & TC17: Chấp nhận đặt 1 phòng và điều hướng tới payment MoMo"""
     mock_create_payment.return_value = {
         'resultCode': 0,
         'payUrl': 'http://mock-momo-url.com/pay',
@@ -199,7 +173,6 @@ def test_accept_valid_booking(mock_create_payment, live_server, selenium_driver,
 
 @patch('app.routes.booking.MoMoService.create_payment_request')
 def test_momo_creation_failed(mock_create_payment, live_server, selenium_driver, sample_customer, specific_room_setup):
-    """TC18: Không tiếp tục thanh toán khi MoMo trả lỗi tạo payment request"""
     mock_create_payment.return_value = {
         'resultCode': 1001,
         'message': 'Giao dịch bị từ chối bởi MoMo'
@@ -222,7 +195,6 @@ def test_momo_creation_failed(mock_create_payment, live_server, selenium_driver,
     assert "lỗi từ cổng thanh toán momo" in toast.lower() or "giao dịch bị từ chối" in toast.lower()
 
 def test_reject_zero_quantity(live_server, selenium_driver, sample_customer, specific_room_setup):
-    """TC15: Từ chối số lượng phòng bằng 0"""
     rt_a, rt_b, rt_c = specific_room_setup
     
     auth_page = AuthPage(selenium_driver)
@@ -241,7 +213,6 @@ def test_reject_zero_quantity(live_server, selenium_driver, sample_customer, spe
     assert "số lượng phòng" in toast.lower() or "không hợp lệ" in toast.lower()
 
 def test_reject_exceed_available_quantity(live_server, selenium_driver, sample_customer, specific_room_setup):
-    """TC16: Từ chối đặt số phòng lớn hơn số lượng phòng thực tế còn trống"""
     rt_a, rt_b, rt_c = specific_room_setup
     
     auth_page = AuthPage(selenium_driver)
@@ -259,12 +230,7 @@ def test_reject_exceed_available_quantity(live_server, selenium_driver, sample_c
     toast = wait_for_toast(selenium_driver)
     assert "chỉ còn" in toast.lower() or "phòng trống" in toast.lower() or "không hợp lệ" in toast.lower()
 
-# ==============================================================================
-# GROUP 4: THANH TOÁN (TC17 - TC19)
-# ==============================================================================
-
 def test_vnpay_not_supported(live_server, selenium_driver, sample_customer, specific_room_setup):
-    """TC19: Không hỗ trợ VNPAY"""
     rt_a, rt_b, rt_c = specific_room_setup
     
     auth_page = AuthPage(selenium_driver)

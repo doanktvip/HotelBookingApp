@@ -1,0 +1,21 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Xác nhận Đặt phòng - StayNow{% endblock %}
+
+{% block email_content %}
+    <h2>Xin chào {{ user.username }},</h2>
+    <p>Cảm ơn bạn đã đặt phòng qua StayNow. Đơn đặt phòng của bạn đã được thanh toán và xác nhận thành công!</p>
+    
+    <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin-top: 25px;">
+        <h3 style="margin-top: 0; color: #0d6efd;">Chi tiết Đơn đặt phòng #{{ booking.id }}</h3>
+        <p><strong>Khách sạn:</strong> <span class="text-bold">{{ booking.hotel.name }}</span></p>
+        <p><strong>Loại phòng:</strong> <span class="text-bold">{{ booking.room_type.name }}</span></p>
+        <p><strong>Ngày nhận phòng:</strong> <span class="text-bold">{{ booking.check_in.strftime('%d/%m/%Y') }}</span></p>
+        <p><strong>Ngày trả phòng:</strong> <span class="text-bold">{{ booking.check_out.strftime('%d/%m/%Y') }}</span></p>
+        <p><strong>Tổng tiền đã thanh toán:</strong> <span class="text-bold" style="color: #dc3545; font-size: 18px;">{{ "{:,.0f}".format(booking.total_price) }} VNĐ</span></p>
+    </div>
+    
+    <p style="margin-top: 25px;">Nếu bạn có bất kỳ câu hỏi nào hoặc cần hỗ trợ thêm, vui lòng liên hệ bộ phận hỗ trợ khách hàng của StayNow.</p>
+    <p>Chúc bạn có một kỳ nghỉ thật tuyệt vời!</p>
+    <p>Trân trọng,<br><strong>Đội ngũ StayNow</strong></p>
+{% endblock %}

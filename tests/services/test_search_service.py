@@ -5,13 +5,10 @@ from app.models import SearchHistory
 
 @pytest.fixture
 def search_service(test_session):
-    """Khởi tạo SearchService với DB thật"""
     return SearchService(db_session=test_session)
 
 @patch('app.services.search_service.AIService.parse_search_query')
 def test_semantic_search_success(mock_parse, test_app, search_service, sample_hotel, sample_customer):
-    """Test chức năng tìm kiếm ngữ nghĩa thành công"""
-    # Mock AI bóc tách câu văn thành filters
     mock_parse.return_value = {
         "name": sample_hotel.name,
         "location": sample_hotel.location,
@@ -44,7 +41,6 @@ def test_semantic_search_success(mock_parse, test_app, search_service, sample_ho
 
 @patch('app.services.search_service.AIService.parse_search_query')
 def test_semantic_search_no_useful_data(mock_parse, test_app, search_service):
-    """Test khi người dùng nhập câu vô nghĩa không chứa điều kiện lọc"""
     # Mock AI không tìm thấy dữ liệu lọc nào
     mock_parse.return_value = {
         "name": None, "location": None, "min_price": None, "max_price": None,
@@ -65,7 +61,6 @@ def test_semantic_search_no_useful_data(mock_parse, test_app, search_service):
         assert history.is_useful is False
 
 def test_save_search_history_duplicate(search_service, sample_customer):
-    """Test chức năng lưu lịch sử không bị lưu trùng"""
     keyword = "khách sạn giá rẻ"
     
     # Lưu lần 1
@@ -81,9 +76,7 @@ def test_save_search_history_duplicate(search_service, sample_customer):
     assert count2 == 1
 
 def test_search_booking_in_recept(test_app, search_service, sample_hotel, sample_customer, sample_booking, sample_booking_details):
-    """Test chức năng tìm kiếm Booking tại quầy Lễ tân"""
     with test_app.test_request_context():
-        # 1. Tìm theo Mã Đặt Phòng (VD: BK-1)
         search_id = f"BK-{sample_booking.id}"
         pagination1 = search_service.search_booking_in_recept(sample_hotel.id, search_id)
         assert pagination1.total == 1

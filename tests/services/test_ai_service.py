@@ -6,12 +6,10 @@ from app.services.ai_service import AIService
 
 @pytest.fixture
 def ai_service(test_session):
-    """Khởi tạo AIService với session từ Database thật"""
     return AIService(db_session=test_session)
 
 @patch('app.services.ai_service.call_gemini_api')
 def test_parse_search_query_success(mock_call_gemini_api, test_app, ai_service, sample_tags):
-    """Test AI phân tích câu tìm kiếm của người dùng"""
     # 1. Giả lập dữ liệu trả về từ Gemini API (để không cần gọi lên server thật tốn tiền/chờ lâu)
     mock_response = {
         "name": "Nha Trang Bay",
@@ -43,8 +41,6 @@ def test_parse_search_query_success(mock_call_gemini_api, test_app, ai_service, 
 
 @patch('app.services.ai_service.call_gemini_api')
 def test_get_ai_recommendations_success(mock_call_gemini_api, test_app, ai_service, sample_customer, sample_hotel, sample_search_history, sample_booking):
-    """Test AI gợi ý khách sạn cá nhân hóa"""
-    # Giả lập AI chấm điểm và chọn khách sạn số 1
     mock_response = [
         {"hotel_id": sample_hotel.id, "match_score": 95}
     ]
@@ -72,10 +68,8 @@ def test_get_ai_recommendations_success(mock_call_gemini_api, test_app, ai_servi
 
 @patch('app.services.ai_service.call_gemini_api')
 def test_generate_price_predictions_success(mock_call_gemini_api, test_app, ai_service, sample_hotel, sample_room_type, sample_rooms):
-    """Test AI dự đoán điều chỉnh giá (Tăng/Giảm giá)"""
     target_date = date.today() + timedelta(days=1)
     
-    # Giả lập AI bảo tăng giá 15% vào ngày mai vì đông khách
     mock_response = [
         {
             "hotel_id": sample_hotel.id,
@@ -100,12 +94,9 @@ def test_generate_price_predictions_success(mock_call_gemini_api, test_app, ai_s
         mock_call_gemini_api.assert_called_once()
 
 def test_get_occupancy_data_for_ai(test_app, ai_service, sample_hotel, sample_rooms, sample_booking_details):
-    """Test hàm tính toán Công suất phòng (Không đụng tới AI)"""
     with test_app.test_request_context():
-        # Khách đặt phòng bắt đầu từ ngày mai (trong fixture sample_booking)
         target_date = date.today() + timedelta(days=1)
         
-        # Tính toán công suất cho ngày mai
         data = ai_service.get_occupancy_data_for_ai([sample_hotel], [target_date])
         
         assert len(data) == 1

@@ -9,7 +9,6 @@ def prediction_service(test_session):
     return PredictionService(db_session=test_session)
 
 def test_save_price_predictions(prediction_service, sample_hotel):
-    """Test chức năng lưu và cập nhật dự báo giá"""
     target_date = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
     
     validated_items = [
@@ -50,7 +49,6 @@ def test_save_price_predictions(prediction_service, sample_hotel):
 
 @patch('app.services.prediction_service.AIService.generate_price_predictions')
 def test_run_daily_prediction_job(mock_generate, test_app, prediction_service, sample_hotel):
-    """Test chức năng CronJob tự động quét và chạy AI hằng ngày"""
     target_date = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
     
     # Giả lập AI trả về 1 dự đoán

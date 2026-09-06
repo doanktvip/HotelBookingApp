@@ -3,7 +3,6 @@ from tests.selenium.pages.auth_page import AuthPage
 import time
 
 def test_register_success(live_server, selenium_driver, test_db):
-    """TC1: Đăng ký tài khoản thành công với đầy đủ thông tin hợp lệ"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
@@ -16,7 +15,6 @@ def test_register_success(live_server, selenium_driver, test_db):
     assert "Đăng ký thành công" in toast_msg
 
 def test_register_missing_username(live_server, selenium_driver, test_db):
-    """TC2: Đăng ký tài khoản không thành công khi thiếu thông tin username"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
@@ -30,19 +28,16 @@ def test_register_missing_username(live_server, selenium_driver, test_db):
     assert validation_msg != ""
 
 def test_register_invalid_username(live_server, selenium_driver, test_db):
-    """TC3: Đăng ký không thành công khi username không hợp lệ"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
     
     page.register("dat", "testuser@gmail.com", "Aa@123456", "Aa@123456")
     
-    # Username 'dat' có thể vi phạm điều kiện độ dài, lúc này form submit về server và trả lỗi toast
     toast_msg = page.get_toast_message()
     assert toast_msg != ""
 
 def test_register_missing_email(live_server, selenium_driver, test_db):
-    """TC4: Thiếu thông tin email"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
@@ -53,7 +48,6 @@ def test_register_missing_email(live_server, selenium_driver, test_db):
     assert email_input.get_attribute("validationMessage") != ""
 
 def test_register_invalid_email(live_server, selenium_driver, test_db):
-    """TC5: Thông tin email không hợp lệ"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
@@ -64,7 +58,6 @@ def test_register_invalid_email(live_server, selenium_driver, test_db):
     assert email_input.get_attribute("validationMessage") != ""
 
 def test_register_missing_password(live_server, selenium_driver, test_db):
-    """TC6: Thiếu thông tin password"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
@@ -75,7 +68,6 @@ def test_register_missing_password(live_server, selenium_driver, test_db):
     assert pw_input.get_attribute("validationMessage") != ""
 
 def test_register_invalid_password(live_server, selenium_driver, test_db):
-    """TC7: Password không hợp lệ (độ dài)"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
@@ -87,7 +79,6 @@ def test_register_invalid_password(live_server, selenium_driver, test_db):
     assert pw_input.get_attribute("validationMessage") != "" or page.get_toast_message() != ""
 
 def test_register_missing_confirm_password(live_server, selenium_driver, test_db):
-    """TC8: Thiếu thông tin nhập lại mật khẩu"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()
@@ -98,7 +89,6 @@ def test_register_missing_confirm_password(live_server, selenium_driver, test_db
     assert cpw_input.get_attribute("validationMessage") != ""
 
 def test_register_mismatch_password(live_server, selenium_driver, test_db):
-    """TC9: Xác nhận mật khẩu không khớp"""
     page = AuthPage(selenium_driver)
     page.open_page(live_server.url)
     page.switch_to_register_tab()

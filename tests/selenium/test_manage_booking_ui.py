@@ -7,7 +7,6 @@ from tests.selenium.pages.auth_page import AuthPage
 from tests.selenium.pages.manage_bookings_page import ManageBookingsPage
 from unittest.mock import patch
 from app.models import User, UserRole, Booking, BookingDetail, Payment
-import hashlib
 from app.models import Booking
 from app.extensions import db
 import datetime
