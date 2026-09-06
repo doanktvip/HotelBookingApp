@@ -86,5 +86,4 @@ def update_booking_status(booking_id):
 
     except ValueError as e:
         flash(str(e), "danger")
-
     return redirect( url_for('receptionist.recept',tab='list'))
