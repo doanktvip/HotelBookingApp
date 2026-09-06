@@ -7,7 +7,6 @@ def room_type_service(test_session):
     return RoomTypeService(db_session=test_session)
 
 def test_get_room_type_by_id(room_type_service, sample_hotel, test_session):
-    """Test lấy loại phòng theo ID"""
     rt = RoomType(hotel_id=sample_hotel.id, name="Deluxe Test", max_occupancy=2, bed_count=1, base_price=100000)
     test_session.add(rt)
     test_session.commit()
@@ -20,7 +19,6 @@ def test_get_room_type_by_id(room_type_service, sample_hotel, test_session):
     assert result_none is None
 
 def test_get_room_types(test_app, room_type_service, sample_hotel, test_session):
-    """Test lấy danh sách loại phòng có phân trang và lọc theo khách sạn"""
     rt1 = RoomType(hotel_id=sample_hotel.id, name="Deluxe 1", max_occupancy=2, bed_count=1, base_price=100000)
     rt2 = RoomType(hotel_id=sample_hotel.id, name="Deluxe 2", max_occupancy=2, bed_count=1, base_price=100000)
     rt3 = RoomType(hotel_id=999, name="Deluxe 3", max_occupancy=2, bed_count=1, base_price=100000) # Khách sạn lạ

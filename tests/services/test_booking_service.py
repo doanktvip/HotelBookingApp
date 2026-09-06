@@ -14,13 +14,10 @@ from app.models import RefundLog
 
 @pytest.fixture
 def booking_service(test_session):
-    """Khởi tạo service (sẽ tự động dùng test_db do đã cấu hình trong conftest.py)"""
     return BookingService(db_session=test_session)
 
 def test_parse_and_validate_dates(test_app, booking_service):
-    """Test parse ngày trong Request Context thật"""
     with test_app.test_request_context():
-        # Kiểm tra logic: nếu checkout trước checkin thì checkout = checkin + 1 ngày
         # Sử dụng ngày tương lai để tránh bị auto-correct về today
         check_in_str = (date.today() + timedelta(days=10)).strftime("%Y-%m-%d")
         check_out_str = (date.today() + timedelta(days=5)).strftime("%Y-%m-%d")
@@ -31,9 +28,7 @@ def test_parse_and_validate_dates(test_app, booking_service):
         assert check_out == date.today() + timedelta(days=11)
 
 def test_create_booking_success(test_app, booking_service, sample_customer, sample_room_type, sample_rooms):
-    """Test tạo đặt phòng thành công với Database (Integration Test)"""
     with test_app.test_request_context():
-        # Gán biến global cho request
         g.tax_fee = 10
         g.max_rooms_per_booking = 5
         
@@ -61,7 +56,6 @@ def test_create_booking_success(test_app, booking_service, sample_customer, samp
         assert len(details) == 2
 
 def test_create_booking_not_enough_rooms(test_app, booking_service, sample_customer, sample_room_type, sample_rooms):
-    """Test lỗi khi số lượng đặt lớn hơn số lượng phòng trống thực tế"""
     with test_app.test_request_context():
         g.tax_fee = 10
         g.max_rooms_per_booking = 5
@@ -82,19 +76,12 @@ def test_create_booking_not_enough_rooms(test_app, booking_service, sample_custo
             )
 
 def test_cancel_user_booking_late(test_app, booking_service, sample_booking):
-    """Test trường hợp quá thời hạn hủy phòng (Chính sách 3 ngày, nhưng đặt phòng là ngày mai)"""
     with test_app.test_request_context():
-        # sample_booking có check_in = ngày mai, trong khi chính sách của hotel là 3 ngày.
-        # Nên thuộc tính can_cancel sẽ là False
         with pytest.raises(ValueError, match="Đã quá thời hạn hủy phòng theo chính sách của khách sạn."):
             booking_service.cancel_user_booking(
                 booking_id=sample_booking.id,
                 user_id=sample_booking.user_id
             )
-
-# ==============================================================================
-# GROUP 4 & 5: THANH TOÁN VÀ PHÂN BỔ PHÒNG (TC20 - TC26)
-# =============================================================================
 
 def get_base64_extra_data(booking_data):
     json_str = json.dumps(booking_data)
@@ -102,7 +89,6 @@ def get_base64_extra_data(booking_data):
 
 @pytest.fixture(scope='function')
 def ipn_test_setup(test_session, sample_hotel, sample_customer):
-    """Setup dữ liệu cho các test IPN"""
     rt = RoomType(hotel=sample_hotel, name="Room Type IPN", base_price=Decimal("1000000"), max_occupancy=2, bed_count=1)
     test_session.add(rt)
     test_session.commit()
@@ -133,11 +119,6 @@ def ipn_test_setup(test_session, sample_hotel, sample_customer):
 
 @patch('app.routes.booking.MoMoService.verify_ipn_signature', return_value=True)
 def test_tc20_tc24_tc25_valid_ipn_success(mock_verify, test_client, ipn_test_setup, test_session):
-    """
-    TC20: Tạo Booking và Payment thành công
-    TC24: Tạo booking đúng số lượng phòng đã chọn
-    TC25: Booking được tạo ở trạng thái CONFIRMED
-    """
     rt, booking_data = ipn_test_setup
     extra_data = get_base64_extra_data(booking_data)
     
@@ -167,7 +148,6 @@ def test_tc20_tc24_tc25_valid_ipn_success(mock_verify, test_client, ipn_test_set
 
 @patch('app.routes.booking.MoMoService.verify_ipn_signature', return_value=True)
 def test_tc21_duplicate_ipn(mock_verify, test_client, ipn_test_setup, test_session):
-    """TC21: Không tạo booking trùng khi MoMo gửi lại IPN cùng transaction_id"""
     rt, booking_data = ipn_test_setup
     extra_data = get_base64_extra_data(booking_data)
     
@@ -194,7 +174,6 @@ def test_tc21_duplicate_ipn(mock_verify, test_client, ipn_test_setup, test_sessi
 
 @patch('app.routes.booking.MoMoService.verify_ipn_signature', return_value=True)
 def test_tc22_insufficient_amount(mock_verify, test_client, ipn_test_setup, test_session):
-    """TC22: Xử lý thanh toán không đủ số tiền bằng lỗi và không xác nhận booking"""
     rt, booking_data = ipn_test_setup
     extra_data = get_base64_extra_data(booking_data)
     
@@ -219,13 +198,8 @@ def test_tc22_insufficient_amount(mock_verify, test_client, ipn_test_setup, test
 
 @patch('app.routes.booking.MoMoService.verify_ipn_signature', return_value=True)
 def test_tc23_tc26_room_not_available(mock_verify, test_client, ipn_test_setup, test_session):
-    """
-    TC23: Hoàn tiền khi thanh toán thành công nhưng phòng đã hết ở thời điểm xử lý IPN
-    TC26: Không tạo booking nếu số phòng trống giảm xuống dưới quantity ở lần kiểm tra cuối
-    """
     rt, booking_data = ipn_test_setup
     
-    # Cố ý set quantity = 5 (vượt quá 3 phòng hiện có)
     booking_data['quantity'] = 5
     booking_data['total_price'] = 5000000
     

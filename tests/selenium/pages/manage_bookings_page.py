@@ -7,7 +7,6 @@ import time
 class ManageBookingsPage(BasePage):
     URL = "/recept?tab=list"
     
-    # Selectors
     SEARCH_INPUT = (By.NAME, "search")
     STATUS_SELECT = (By.NAME, "status")
     DATE_SELECT = (By.NAME, "check_in_date")
@@ -81,11 +80,10 @@ class ManageBookingsPage(BasePage):
         
     def wait_for_checkout_modal(self):
         self.find(*self.CHECKOUT_MODAL)
-        # Wait for API fetch to complete (prices get updated from 0 đ)
         WebDriverWait(self.driver, 5).until(
             lambda d: d.find_element(*self.CHECKOUT_ROOM_PRICE).text != "0 đ"
         )
-        time.sleep(0.5)  # Wait for modal fade animation to finish
+        time.sleep(0.5) 
         
     def get_checkout_fees(self):
         room_price = self.driver.find_element(*self.CHECKOUT_ROOM_PRICE).text
@@ -108,10 +106,10 @@ class ManageBookingsPage(BasePage):
         time.sleep(0.5)
         
     def close_checkout_modal(self):
-        time.sleep(0.5) # Wait for fade in
+        time.sleep(0.5)
         btn = WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable(self.CLOSE_MODAL_BTN))
         btn.click()
-        time.sleep(0.5) # Wait for fade out
+        time.sleep(0.5)
         WebDriverWait(self.driver, 5).until(
             EC.invisibility_of_element_located(self.CHECKOUT_MODAL)
         )

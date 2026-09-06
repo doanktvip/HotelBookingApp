@@ -60,9 +60,9 @@ class BasePage:
                 element = self.wait.until(EC.presence_of_element_located((by, value)))
                 text = element.get_attribute("textContent")
                 return text.strip() if text else ""
-            except StaleElementReferenceException:  # pragma: no cover
-                continue  # pragma: no cover
-        return ""  # pragma: no cover
+            except StaleElementReferenceException:
+                continue
+        return ""
 
     def get_current_url(self):
         return self.driver.current_url

@@ -5,8 +5,6 @@ from app.services.email_service import EmailService
 @patch('app.services.email_service.mail.send')
 @patch('app.services.email_service.render_template')
 def test_send_verification_email_success(mock_render_template, mock_mail_send, test_app):
-    """Test chức năng gửi email xác thực thành công"""
-    # Mock template trả về nội dung HTML giả (để không phụ thuộc vào file html có tồn tại hay bị lỗi cú pháp không)
     mock_render_template.return_value = "<html>Mã OTP của bạn là 123456</html>"
     
     with test_app.test_request_context():
@@ -31,10 +29,7 @@ def test_send_verification_email_success(mock_render_template, mock_mail_send, t
 @patch('app.services.email_service.mail.send')
 @patch('app.services.email_service.render_template')
 def test_send_verification_email_fail(mock_render_template, mock_mail_send, test_app):
-    """Test trường hợp gửi email thất bại do lỗi cấu hình hoặc mạng (SMTP Error)"""
     mock_render_template.return_value = "<html>Mã OTP của bạn là 123456</html>"
-    
-    # Cố tình ép hàm gửi mail văng lỗi
     mock_mail_send.side_effect = Exception("SMTP Connection Error")
     
     with test_app.test_request_context():

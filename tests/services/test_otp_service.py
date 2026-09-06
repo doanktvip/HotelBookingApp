@@ -7,13 +7,11 @@ def otp_service(test_session):
     return OTPService(db_session=test_session)
 
 def test_create_otp_code(otp_service):
-    """Test chức năng sinh mã ngẫu nhiên 6 chữ số"""
     code = otp_service.create_otp_code()
     assert len(code) == 6
     assert code.isdigit()
 
 def test_save_otp(test_app, otp_service, sample_customer):
-    """Test chức năng lưu mã OTP vào database"""
     with test_app.test_request_context():
         g.otp_expiration_minutes = 5
         
@@ -24,21 +22,17 @@ def test_save_otp(test_app, otp_service, sample_customer):
         assert otp.is_used is False
 
 def test_verify_otp_success(test_app, otp_service, sample_customer):
-    """Test người dùng nhập đúng mã OTP"""
     with test_app.test_request_context():
         g.otp_expiration_minutes = 5
         otp_service.save_otp(sample_customer.id, "123456")
         
-        # Đưa trạng thái chưa kích hoạt
         sample_customer.is_verified = False
         
         result = otp_service.verify_otp(sample_customer, "123456")
         assert result is True
-        # Tài khoản phải được đổi thành đã xác thực
         assert sample_customer.is_verified is True
 
 def test_verify_otp_invalid(test_app, otp_service, sample_customer):
-    """Test người dùng nhập sai mã OTP"""
     with test_app.test_request_context():
         g.otp_expiration_minutes = 5
         otp_service.save_otp(sample_customer.id, "123456")
@@ -47,9 +41,7 @@ def test_verify_otp_invalid(test_app, otp_service, sample_customer):
             otp_service.verify_otp(sample_customer, "000000")
 
 def test_verify_otp_expired(test_app, otp_service, sample_customer):
-    """Test người dùng nhập đúng mã nhưng đã quá hạn"""
     with test_app.test_request_context():
-        # Ép mã hết hạn cách đây 5 phút (số âm)
         g.otp_expiration_minutes = -5 
         otp_service.save_otp(sample_customer.id, "123456")
         
@@ -57,12 +49,9 @@ def test_verify_otp_expired(test_app, otp_service, sample_customer):
             otp_service.verify_otp(sample_customer, "123456")
 
 def test_has_active_otp(test_app, otp_service, sample_customer):
-    """Test kiểm tra xem người dùng có đang có mã OTP nào còn sống không"""
     with test_app.test_request_context():
-        # 1. Lúc đầu chưa có mã nào
         assert otp_service.has_active_otp(sample_customer.id) is False
         
-        # 2. Tạo một mã sống 5 phút
         g.otp_expiration_minutes = 5
         otp_service.save_otp(sample_customer.id, "123456")
         

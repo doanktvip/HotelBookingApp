@@ -38,10 +38,8 @@ def test_client(test_app, test_db):
 
 @pytest.fixture(scope='function')
 def test_session(test_db):
-    # Sử dụng trực tiếp db.session để dữ liệu thực sự được commit xuống file test.db
     yield test_db.session
     
-    # Dọn dẹp dữ liệu sau mỗi test để các test không ảnh hưởng lẫn nhau
     test_db.session.remove()
     for table in reversed(test_db.metadata.sorted_tables):
         test_db.session.execute(table.delete())
@@ -49,11 +47,6 @@ def test_session(test_db):
 
 @pytest.fixture(scope="function")
 def selenium_driver():
-    """
-    Selenium WebDriver fixture for E2E/UI testing.
-    Runs in normal UI mode (headless removed).
-    """
-    
     options = Options()
     # options.add_argument('--headless') # Đã tắt chế độ headless để xem UI
     options.add_argument('--disable-gpu')
@@ -61,7 +54,6 @@ def selenium_driver():
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--window-size=1920,1080')
     
-    # Initialize WebDriver
     service = ChromeService(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
     
@@ -80,11 +72,9 @@ def pytest_sessionstart(session):
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """ Tự động chụp màn hình nếu test PASS """
     outcome = yield
     rep = outcome.get_result()
     if rep.when == "call" and rep.passed:
-        # Lấy instance của driver từ fixture
         driver = item.funcargs.get("selenium_driver", None)
         if driver:
             os.makedirs("screenshots", exist_ok=True)
@@ -109,10 +99,9 @@ class ServerThread(threading.Thread):
 
 @pytest.fixture(scope="session")
 def live_server(app):
-    """ Custom live_server using threading to avoid multiprocessing bugs """
     server = ServerThread(app, 5001)
     server.start()
-    time.sleep(1) # Chờ server khởi động
+    time.sleep(1) 
     
     class LiveServerInfo:
         url = "http://127.0.0.1:5001"

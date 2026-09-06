@@ -18,12 +18,7 @@ def test_get_user_by_id_and_filter(user_service, sample_customer):
     assert user2 is not None
     assert user2.id == sample_customer.id
 
-def test_auth_user_success(user_service, sample_customer):
-    """Test đăng nhập thành công"""
-    # sample_customer có password là 123456 nhưng trong fixture_db nó dùng generate_password_hash.
-    # Trong khi đó UserService lại dùng hashlib.md5. 
-    # Do đó, để test auth_user của UserService, ta sẽ tạo một user mới băm bằng MD5.
-    
+def test_auth_user_success(user_service, sample_customer):    
     password_123456_md5 = str(hashlib.md5("123456".strip().encode('utf-8')).hexdigest())
     sample_customer.password = password_123456_md5
     user_service.commit_or_rollback()
@@ -33,7 +28,6 @@ def test_auth_user_success(user_service, sample_customer):
     assert user.id == sample_customer.id
 
 def test_auth_user_fail(user_service, sample_customer):
-    """Test đăng nhập thất bại do sai mật khẩu"""
     password_123456_md5 = str(hashlib.md5("123456".strip().encode('utf-8')).hexdigest())
     sample_customer.password = password_123456_md5
     user_service.commit_or_rollback()
@@ -42,7 +36,6 @@ def test_auth_user_fail(user_service, sample_customer):
         user_service.auth_user(sample_customer.username, "wrong_password")
 
 def test_add_user_success(test_app, user_service):
-    """Test thêm người dùng thành công"""
     with test_app.test_request_context():
         g.min_len = 6
         g.max_len = 20
@@ -55,11 +48,9 @@ def test_add_user_success(test_app, user_service):
         )
         assert new_user.id is not None
         assert new_user.username == "newuser123"
-        # Mật khẩu phải được băm MD5
         assert new_user.password == str(hashlib.md5("password123".encode('utf-8')).hexdigest())
 
 def test_add_user_validation_fail(test_app, user_service):
-    """Test thêm người dùng thất bại do validation"""
     with test_app.test_request_context():
         g.min_len = 6
         g.max_len = 20
@@ -77,7 +68,6 @@ def test_add_user_validation_fail(test_app, user_service):
             user_service.add_user("testuser", "email-sai", "pass123", "pass123")
 
 def test_update_phone_and_email_success(user_service, sample_customer):
-    """Test cập nhật sđt và email thành công"""
     updated = user_service.update_phone_and_email(sample_customer, "0123456789", "new_email@gmail.com")
     
     assert updated is True
@@ -86,12 +76,10 @@ def test_update_phone_and_email_success(user_service, sample_customer):
     assert sample_customer.is_verified is False # Cập nhật email sẽ đưa is_verified về False
 
 def test_update_phone_and_email_duplicate_email(user_service, sample_customer, sample_admin):
-    """Test lỗi khi email đã có người khác dùng"""
     with pytest.raises(ValueError, match="Email này đã được sử dụng bởi tài khoản khác!"):
         user_service.update_phone_and_email(sample_customer, None, sample_admin.email)
 
 def test_change_password_success(test_app, user_service, sample_customer):
-    """Test đổi mật khẩu thành công"""
     with test_app.test_request_context():
         g.min_len = 6
         g.max_len = 20
@@ -109,8 +97,6 @@ def test_change_password_success(test_app, user_service, sample_customer):
 
 @patch("app.services.user_service.cloudinary.uploader.upload")
 def test_update_avatar_with_file_success(mock_upload, user_service, sample_customer):
-    """Test đổi ảnh đại diện (sử dụng mock để không gửi file thật lên Cloudinary)"""
-    # Giả lập kết quả trả về từ Cloudinary
     mock_upload.return_value = {"secure_url": "https://fake_cloudinary.com/avatar.jpg"}
     
     result = user_service.update_avatar_with_file(sample_customer, "fake_file_content")

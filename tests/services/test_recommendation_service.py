@@ -9,7 +9,6 @@ def recommendation_service(test_session):
 
 @patch('app.services.recommendation_service.AIService.get_ai_recommendations')
 def test_get_recommended_hotels(mock_ai, test_app, recommendation_service, sample_customer, sample_hotel, sample_booking):
-    """Test chức năng gợi ý khách sạn cá nhân hóa (kết hợp Thuật toán SQL + AI)"""
     # Mock AI vì không muốn gọi API thật
     mock_ai.return_value = [sample_hotel]
     

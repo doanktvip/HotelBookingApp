@@ -4,14 +4,11 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 
 class HotelDetailPage(BasePage):
-    """Page Object Model for the Hotel Detail Page"""
-    
-    # Locators
+
     CHECK_IN_INPUT = (By.ID, "check_in")
     CHECK_OUT_INPUT = (By.ID, "check_out")
     CHECK_BUTTON = (By.CSS_SELECTOR, "button[type='submit']")
     
-    # Locators cho Room Type Card
     def get_room_badge(self, room_type_id):
         return (By.ID, f"room-avail-badge-{room_type_id}")
         
@@ -25,7 +22,6 @@ class HotelDetailPage(BasePage):
         self.js_typing(*self.CHECK_IN_INPUT, check_in_str)
         self.js_typing(*self.CHECK_OUT_INPUT, check_out_str)
         self.click(*self.CHECK_BUTTON)
-        # Đợi load lại
         time.sleep(0.5)
 
     def get_check_in_date(self):
@@ -45,7 +41,6 @@ class HotelDetailPage(BasePage):
     def is_book_button_disabled(self, room_type_id):
         try:
             element = self.find(*self.get_book_button(room_type_id))
-            # Nếu là button có class disabled hoặc có thuộc tính disabled
             return 'disabled' in element.get_attribute('class') or element.get_attribute('disabled') == 'true' or element.get_attribute('disabled') == 'disabled'
         except (TimeoutException, NoSuchElementException):
             return False
