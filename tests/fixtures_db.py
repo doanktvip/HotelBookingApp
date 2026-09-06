@@ -9,7 +9,6 @@ from app.models import (
 )
 import uuid
 from app.utils import get_vn_time
-
 PASSWORD='123456'
 
 @pytest.fixture(scope='function')
@@ -287,7 +286,7 @@ def setup_recept_data(test_db, sample_customer, sample_room_type, sample_rooms):
         room.status = room_status
         
         detail = BookingDetail(booking_id=b.id, room_id=room.id, price_at_booking=1500000)
-        payment = Payment(booking_id=b.id, amount=b.total_price, transaction_id=str(uuid.uuid4())[:8], payment_method='MOMO')
+        payment = Payment(booking_id=b.id, amount=b.total_price, transaction_id=str(uuid.uuid4())[:8], payment_method='MOMO', status=PaymentStatus.SUCCESS)
         test_db.session.add(detail)
         test_db.session.add(payment)
         test_db.session.commit()

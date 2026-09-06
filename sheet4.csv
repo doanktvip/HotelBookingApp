@@ -1,0 +1,72 @@
+TEST CASE,,,,,,,,,,
+,,,,,,,,,,
+System Name：,HotelBookingApp,,,,,,,,,
+Module Code：,BookingManagement,,,,,,,,,
+Test requirement:,Quản lý đặt phòng,,,,,,,,,
+Pass,5,Pending,16,,,,,,,
+Fail,0,Number of test cases:,21,,,,,,,
+,,,,,,,,,,
+ID,Test Case Description,Test Case Procedure,Expected Results,,,,Actual Results,Test date,Status,Note
+,,,,,,,,,,
+,,,,,,,,,,
+"1. Hiển thị danh sách đơn đặt phòng
+",,,,,,,,,,
+TC1,Lễ tân xem danh sách đơn đặt phòng,"1. Đăng nhập bằng tài khoản Lễ tân
+2. Chọn chức năng ""Quản lý đơn đặt phòng""","Hệ thống hiển thị danh sách đơn với thông tin: tên khách hàng, số điện thoại, loại phòng, số phòng, ngày giờ đến/đi, trạng thái",,,,test_receptionist_view_bookings_20260906-142036.png,6/9/2026,Pass,
+TC2,Kiểm tra sắp xếp ưu tiên đơn sắp check-in/check-out trong ngày,"1. Đăng nhập bằng tài khoản Lễ tân
+2. Chọn chức năng ""Quản lý đơn đặt phòng""",Các đơn sắp check-in/check-out trong ngày được hiển thị ưu tiên ở đầu danh sách,,,,,6/9/2026,Pending,
+TC3,Đăng nhập không đúng quyền hạn,"1. Đăng nhập bằng tài khoản Khách hàng (không có quyền quản lý)
+2. Cố gắng truy cập ""Quản lý đơn đặt phòng"" (bằng link)","Hệ thống từ chối truy cập, báo lỗi và tự động quay về trang chủ",,,,,6/9/2026,Pending,
+TC4,Chủ khách sạn xem danh sách đơn đặt phòng,"1. Đăng nhập bằng tài khoản Chủ khách sạn
+2. Chọn ""Quản lý đơn đặt phòng""","Hệ thống hiển thị danh sách đơn với thông tin: tên khách hàng, số điện thoại, loại phòng, số phòng, ngày giờ đến/đi, trạng thái",,,,,6/9/2026,Pending,
+2. Tra cứu đơn đặt phòng,,,,,,,,,,
+TC5,Tìm kiếm đơn theo mã đơn,"1. Đăng nhập bằng tài khoản Lễ tân
+2. Nhập mã đơn vào ô tìm kiếm (VD: BK001)",Danh sách chỉ hiển thị đúng đơn BK001,,,,test_search_booking_20260906-142052.png,6/9/2026,Pass,
+TC6,Tìm kiếm đơn theo tên khách hàng,"1. Đăng nhập Lễ tân
+2. Nhập tên khách vào ô tìm kiếm (VD: Nguyễn Văn A)",Danh sách chỉ hiển thị các đơn của khách Nguyễn Văn A,,,,,6/9/2026,Pending,
+TC7,Tìm kiếm đơn theo số điện thoại,"1. Đăng nhập Lễ tân
+2. Nhập số điện thoại vào ô tìm kiếm (VD: 012345678)",Danh sách chỉ hiển thị các đơn có SĐT 012345678,,,,,6/9/2026,Pending,
+TC8,Tìm kiếm với dữ liệu không khớp bất kỳ đơn nào ,"1. Đăng nhập Lễ tân
+2. Nhập thông tin không tồn tại vào ô tìm kiếm","Hệ thống hiển thị ""Không tìm thấy thông tin đặt chỗ phù hợp"" và yêu cầu nhập lại",,,,,6/9/2026,Pending,
+TC9,Tìm kiếm với ô tìm kiếm để trống,"1. Đăng nhập Lễ tân
+2. Không nhập dữ liệu, thực hiện tìm kiếm",Hệ thống hiển thị toàn bộ danh sách đơn (không lọc) hoặc yêu cầu nhập điều kiện tìm kiếm,,,,,6/9/2026,Pending,
+TC10,Tìm kiếm với dữ liệu nhập một phần ,"1. Đăng nhập Lễ tân
+2. Nhập một phần tên khách (VD: Nguyễn)","Danh sách hiển thị tất cả các đơn của khách có tên chứa ""Nguyễn""",,,,,6/9/2026,Pending,
+TC11,Tìm kiếm với dữ liệu có khoảng trắng thừa,"1. Đăng nhập Lễ tân
+2. Nhập mã đơn có khoảng trắng đầu/cuối (VD: __BK001_)",Hệ thống xử lý dữ liệu và hiển thị đúng đơn BK001,,,,,6/9/2026,Pending,
+TC12,Lọc đơn đặt phòng theo Trạng thái,"1: Tại màn hình Quản lý đơn, mở bộ lọc Trạng thái.
+2: Chọn trạng thái ""Đang sử dụng"".","1: Danh sách cập nhật ngay lập tức.
+2: Chỉ hiển thị các đơn đang có trạng thái ""Đang sử dụng"". Các đơn khác bị ẩn",,,,,6/9/2026,Pending,
+TC13,Lọc đơn đặt phòng kết hợp Ngày và Trạng thái,"1: Mở bộ lọc.
+2: Chọn Ngày check-in là ""Hôm nay"".
+3: Chọn Trạng thái ""Đã đặt"".
+4: Nhấn áp dụng/Tìm kiếm.",Chỉ hiển thị những đơn khách dự kiến nhận phòng trong ngày hôm nay,,,,test_filter_status_and_date_20260906-142101.png,6/9/2026,Pass,
+3. Check-in,,,,,,,,,,
+TC14,"Check-in cho đơn ở trạng thái ""Đã đặt""","1. Đăng nhập Lễ tân
+2. Chọn đơn trạng thái ""Đã đặt"" (khách có mặt tại quầy)
+3. Thực hiện check-in","1. Trạng thái đơn chuyển thành ""Đang sử dụng""
+2. Dữ liệu cập nhật chính xác vào DB. Đơn hiển thị trạng thái ""Đang sử dụng"" sau khi tải lại",,,,test_checkin_20260906-142108.png,6/9/2026,Pass,
+TC15,"Check-in cho đơn không ở trạng thái ""Đã đặt""","1. Đăng nhập Lễ tân
+2. Chọn đơn trạng thái ""Đang sử dụng""
+3. Thử thao tác check-in","Hệ thống không cho phép check-in cho đơn không ở trạng thái ""Đã đặt""",,,,,6/9/2026,Pending,
+TC16,Check-in đơn đã bị hủy,"1. Đăng nhập Lễ tân
+2. Chọn đơn trạng thái ""Đã hủy""
+3. Thử thao tác check-in",Hệ thống không cho phép check-in đơn đã hủy,,,,,6/9/2026,Pending,
+4. Check-out,,,,,,,,,,
+TC17,"Check-out cho đơn ở trạng thái ""Đang sử dụng""","1. Đăng nhập Lễ tân
+2. Chọn đơn trạng thái ""Đang sử dụng""
+3. Thực hiện check-out","1. Hệ thống tổng hợp chi phí phát sinh
+2. Hiển thị chi tiết từng khoản đóng, tổng chi phí chính xác
+3. Sau xác nhận thanh toán: trạng thái phòng → ""Trống"", trạng thái đơn → ""Đã hoàn tất""
+4. Phòng 202 hiển thị trạng thái ""Trống"", có thể đặt lại cho khách khác",,,,test_checkout_flow_20260906-142118.png,6/9/2026,Pass,
+TC18,"Kiểm tra trạng thái đơn ""Đã hoàn tất"" sau check-out","1. Thực hiện check-out (VD: đơn BK013)
+2. Tải lại danh sách và tra cứu đơn","Đơn BK013 hiển thị trạng thái ""Đã hoàn tất"" sau khi tải lại (dữ liệu cập nhật vào DB)",,,,,6/9/2026,Pending,
+TC19,"Check-out cho đơn không ở trạng thái ""Đang sử dụng""","1. Đăng nhập Lễ tân
+2. Chọn đơn trạng thái ""Đã đặt""
+3. Thử thao tác check-out",Hệ thống không cho phép check-out đơn chưa check-in,,,,,6/9/2026,Pending,
+TC20,Check-out khi khách chưa thanh toán đầy đủ,"1. Thực hiện check-out
+2. Tại bước xác nhận thanh toán, không hoàn tất thanh toán","Hệ thống không cho hoàn tất check-out cho đến khi xác nhận thanh toán thành công; trạng thái đơn giữ nguyên ""Đang sử dụng""",,,,,6/9/2026,Pending,
+TC21,Hủy bỏ thao tác khi đang làm thủ tục Check-out,"1: Nhấn Check-out cho một đơn ""Đang sử dụng"".
+2: Tại màn hình xác nhận hóa đơn/thanh toán, Lễ tân nhấn nút ""Hủy"" hoặc ""Đóng"".","1: Hộp thoại thanh toán đóng lại.
+2: Trạng thái đơn đặt phòng giữ nguyên là ""Đang sử dụng"".
+3: Trạng thái phòng trên hệ thống không bị đổi thành ""Trống"".",,,,,6/9/2026,Pending,
