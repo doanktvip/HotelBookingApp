@@ -25,6 +25,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const checkInDate = new Date(checkInInput.value);
             if (isNaN(checkInDate)) return;
 
+            // Tự động sửa check_in nếu ngày trong quá khứ
+            const todayDate = new Date(todayStr);
+            if (checkInDate < todayDate) {
+                checkInInput.value = todayStr;
+                checkInDate.setTime(todayDate.getTime());
+            }
+
             const nextDay = new Date(checkInDate);
             nextDay.setDate(nextDay.getDate() + 1);
             
@@ -44,6 +51,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         checkInInput.addEventListener('change', updateCheckOutMin);
+        
+        checkOutInput.addEventListener('change', function() {
+            const checkInDate = new Date(checkInInput.value);
+            const currentCheckOut = new Date(checkOutInput.value);
+            if (!isNaN(checkInDate) && !isNaN(currentCheckOut) && currentCheckOut <= checkInDate) {
+                const nextDay = new Date(checkInDate);
+                nextDay.setDate(nextDay.getDate() + 1);
+                const n_yyyy = nextDay.getFullYear();
+                const n_mm = String(nextDay.getMonth() + 1).padStart(2, '0');
+                const n_dd = String(nextDay.getDate()).padStart(2, '0');
+                checkOutInput.value = `${n_yyyy}-${n_mm}-${n_dd}`;
+            }
+        });
         
         // Nếu chưa có giá trị, tự động điền ngày hôm nay
         if (!checkInInput.value) {
