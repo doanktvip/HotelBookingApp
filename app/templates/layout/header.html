@@ -41,11 +41,8 @@
                 {% endcall %}
               
               {% elif current_user.role.name == 'RECEPTIONIST' %}
-                {% call render_nav_item(href="/bookings") %}
-                  <i class="bi bi-calendar-check"></i> Lịch đặt phòng
-                {% endcall %}
-                {% call render_nav_item(href="/rooms") %}
-                  <i class="bi bi-door-open"></i> Trạng thái phòng
+                {% call render_nav_item(href="/recept") %}
+                  <i class="bi bi-calendar-check"></i> Quản lý phòng - Đặt phòng
                 {% endcall %}
               
               {% elif current_user.role.name == 'ADMIN' %}
