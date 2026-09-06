@@ -80,24 +80,7 @@ class ManageBookingsPage(BasePage):
         
     def wait_for_checkout_modal(self):
         self.find(*self.CHECKOUT_MODAL)
-        WebDriverWait(self.driver, 5).until(
-            lambda d: d.find_element(*self.CHECKOUT_ROOM_PRICE).text != "0 đ"
-        )
         time.sleep(0.5) 
-        
-    def get_checkout_fees(self):
-        room_price = self.driver.find_element(*self.CHECKOUT_ROOM_PRICE).text
-        late_fee = "0 đ"
-        if self.driver.find_element(*self.CHECKOUT_LATE_FEE_ROW).is_displayed():
-            late_fee = self.driver.find_element(*self.CHECKOUT_LATE_FEE).text
-            
-        return {
-            'room_price': room_price,
-            'late_fee': late_fee,
-            'total': self.driver.find_element(*self.CHECKOUT_TOTAL).text,
-            'paid': self.driver.find_element(*self.CHECKOUT_PAID).text,
-            'balance': self.driver.find_element(*self.CHECKOUT_BALANCE).text
-        }
         
     def confirm_checkout(self):
         time.sleep(0.5)

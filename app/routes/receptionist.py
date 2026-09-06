@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, abort, redirect, url_for
+from flask import Blueprint, render_template, request, abort, redirect, url_for, flash
 from flask_login import login_required,current_user
 
 from app.services.search_service import SearchService
@@ -56,7 +56,7 @@ def recept():
     search = request.args.get('search', '').strip()
     status = request.args.get('status', 'ALL')
     check_in_date = request.args.get('check_in_date', '')
-
+    
     search_service = SearchService(db.session)
     bookings_pagination = search_service.search_booking_in_recept(
         hotel_id=hotel_id,
@@ -68,43 +68,6 @@ def recept():
     )
     return render_template('room_management.html',rooms_by_floor=rooms_by_floor,status_counts=status_counts,floors=floors,bookings=bookings_pagination,today=today,BookingStatus=BookingStatus,current_status=status,current_date=check_in_date)
 
-@receptionist_bp.route('/api/checkout-details/<int:booking_id>', methods=['GET'])
-@login_required
-def get_checkout_details(booking_id):
-    if current_user.role != UserRole.RECEPTIONIST:
-        abort(403)
-        
-    booking = db.get_or_404(Booking, booking_id)
-    if booking.hotel_id != current_user.hotel_id:
-        abort(403)
-        
-    room_price = float(booking.total_price)
-    late_fee = 0.0
-    
-    # Calculate late fee if after 12:00 on checkout day or later
-    today = get_vn_time().date()
-    current_time = get_vn_time().time()
-    from datetime import time
-    checkout_time_limit = time(12, 0)
-    
-    if today > booking.check_out or (today == booking.check_out and current_time > checkout_time_limit):
-        # Charge 10% of total price
-        late_fee = room_price * 0.1
-        
-    total = room_price + late_fee
-    
-    paid = room_price 
-    balance = total - paid
-    
-    from flask import jsonify
-    return jsonify({
-        'room_price': room_price,
-        'late_fee': late_fee,
-        'total': total,
-        'paid': paid,
-        'balance': balance
-    })
-
 
 @receptionist_bp.route('/update_booking_status/<int:booking_id>', methods=['POST'])
 @login_required
@@ -113,9 +76,15 @@ def update_booking_status(booking_id):
         abort(403)
 
     action = request.form.get('action')
-
     checkout_service = CheckoutService(db.session)
-    checkout_service.update_status_at_counter(booking_id, current_user.hotel_id, action)
+    try:
+        checkout_service.update_status_at_counter(booking_id,current_user.hotel_id,action)
+        if action == "checkin":
+            flash("Check-in thành công.", "success")
+        elif action == "checkout":
+            flash("Checkout thành công.", "success")
 
-    return redirect(url_for('receptionist.recept', tab='list'))
+    except ValueError as e:
+        flash(str(e), "danger")
 
+    return redirect( url_for('receptionist.recept',tab='list'))

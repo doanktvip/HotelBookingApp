@@ -120,24 +120,8 @@ def test_checkout_flow(live_server, selenium_driver, setup_recept_data):
     # Tìm đơn đang ở
     page.search(text=f"BK-{b1}")
     
-    # Nhấn Check-out
+    # TC17: Thực hiện check-out trực tiếp
     page.click_checkout(b1)
-    page.wait_for_checkout_modal()
-    
-    fees = page.get_checkout_fees()
-    assert fees['room_price'] != "0 đ"
-    
-    # TC22: Đóng modal
-    page.close_checkout_modal()
-    
-    # Trạng thái vẫn là "Đang dùng"
-    row_html = page.get_booking_rows()[0].get_attribute('innerHTML')
-    assert "Đang dùng" in row_html
-    
-    # TC17: Xác nhận thanh toán
-    page.click_checkout(b1)
-    page.wait_for_checkout_modal()
-    page.confirm_checkout()
     
     # Sau khi xác nhận, reload danh sách
     page.open(f"{live_server.url}{page.URL}")
@@ -146,24 +130,3 @@ def test_checkout_flow(live_server, selenium_driver, setup_recept_data):
     assert "Hoàn thành" in row_html
 
 
-def test_checkout_late_fee(live_server, selenium_driver, setup_recept_data):
-    recept, _, create_b = setup_recept_data
-    b1 = create_b('occupied')
-    
-    page = login_and_goto_manage(live_server, selenium_driver, recept)
-    
-    
-    # Modify booking in db to have check_out = yesterday to trigger late fee
-    b_obj = db.session.get(Booking, b1)
-    b_obj.check_out = get_vn_time().date() - datetime.timedelta(days=1)
-    db.session.commit()
-
-    with patch('app.services.checkout_service.CheckoutService.process_auto_checkout'):
-        page.search(text=f"BK-{b1}")
-        page.click_checkout(b1)
-        page.wait_for_checkout_modal()
-
-        fees = page.get_checkout_fees()
-        assert fees['late_fee'] != "0 đ", "Phụ phí muộn phải > 0 khi check-out trễ"
-        
-        page.close_checkout_modal()
