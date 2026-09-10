@@ -3,7 +3,7 @@ import time
 from tests.selenium.pages.home_page import HomePage
 from tests.selenium.pages.auth_page import AuthPage
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
+
 
 def test_guest_visit_home(live_server, selenium_driver):
     page = HomePage(selenium_driver)

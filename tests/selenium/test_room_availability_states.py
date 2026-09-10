@@ -1,18 +1,12 @@
 import sys
 import os
-import atexit
 import time
-import shutil
 import hashlib
 from datetime import date, timedelta
 from decimal import Decimal
 import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
 
+# Đảm bảo đường dẫn root dự án có trong sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 from app.models import (
@@ -20,109 +14,7 @@ from app.models import (
     Booking, BookingStatus, BookingDetail
 )
 from app.utils import get_vn_time
-
-CHROMEDRIVER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../.venv/chromedriver.exe'))
-if os.path.exists(CHROMEDRIVER_PATH):
-    service = Service(executable_path=CHROMEDRIVER_PATH)
-else:
-    service = Service()
-
-atexit.register(lambda: service.stop() if hasattr(service, 'process') and service.process else None)
-
-
-@pytest.fixture(scope="function")
-def driver():
-    options = webdriver.ChromeOptions()
-    if os.environ.get('SELENIUM_HEADLESS', '0') == '1':
-        options.add_argument('--headless=new')
-    options.add_argument('--start-maximized')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--window-size=1600,1000')
-
-    driver_instance = webdriver.Chrome(service=service, options=options)
-    driver_instance.implicitly_wait(10)
-    yield driver_instance
-    driver_instance.quit()
-
-
-def capture_screenshot(driver, filename):
-    """Chụp và lưu ảnh màn hình vào thư mục screenshots/ và đồng bộ sang brain artifacts."""
-    screenshots_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../screenshots"))
-    os.makedirs(screenshots_dir, exist_ok=True)
-    filepath = os.path.join(screenshots_dir, filename)
-    driver.save_screenshot(filepath)
-
-    brain_dir = r"C:\Users\Admin\.gemini\antigravity\brain\b1b75c48-d695-459b-8509-7a4460c89c54"
-    if os.path.exists(brain_dir):
-        try:
-            shutil.copy2(filepath, os.path.join(brain_dir, filename))
-        except Exception:
-            pass
-
-    return filepath
-
-
-def scroll_to_room_card(driver, room_type_name):
-    """Cuộn màn hình đến chính giữa thẻ phòng để thấy rõ thông tin, nhãn trống và nút đặt phòng."""
-    try:
-        room_card = driver.find_element(
-            By.XPATH, f"//div[contains(@class, 'custom-room-card')][.//h5[contains(text(), '{room_type_name}')]]"
-        )
-        driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", room_card)
-        time.sleep(0.5)
-    except Exception:
-        pass
-
-
-def login_customer(driver, base_url, username, password):
-    driver.get(f"{base_url}/login")
-    wait = WebDriverWait(driver, 10)
-    user_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "form[action='/login'] input[name='username']")))
-    pass_input = driver.find_element(By.CSS_SELECTOR, "form[action='/login'] input[name='password']")
-    submit_btn = driver.find_element(By.CSS_SELECTOR, "form[action='/login'] button[type='submit']")
-
-    user_input.clear()
-    user_input.send_keys(username)
-    pass_input.clear()
-    pass_input.send_keys(password)
-    submit_btn.click()
-
-    wait.until(lambda d: "/login" not in d.current_url)
-
-
-def search_room_dates(driver, check_in_str, check_out_str):
-    wait = WebDriverWait(driver, 10)
-    check_in_input = wait.until(EC.presence_of_element_located((By.ID, "check_in")))
-    check_out_input = wait.until(EC.presence_of_element_located((By.ID, "check_out")))
-
-    driver.execute_script("""
-        arguments[0].removeAttribute('min');
-        arguments[0].value = arguments[1];
-        arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
-        arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
-    """, check_in_input, check_in_str)
-
-    driver.execute_script("""
-        arguments[0].removeAttribute('min');
-        arguments[0].value = arguments[1];
-        arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
-        arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
-    """, check_out_input, check_out_str)
-
-    search_btn = wait.until(
-        EC.element_to_be_clickable((
-            By.XPATH,
-            "//button[@id='search-btn'] | //button[@type='submit' and (contains(text(), 'Tìm kiếm') or contains(text(), 'Kiểm tra'))] | //button[@type='submit']"
-        ))
-    )
-    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", search_btn)
-    driver.execute_script("arguments[0].click();", search_btn)
-
-    wait.until(EC.staleness_of(search_btn))
-    wait.until(EC.presence_of_element_located((By.ID, "check_in")))
-    wait.until(lambda d: d.find_element(By.ID, "check_in").get_attribute("value") == check_in_str)
+from tests.selenium.pages import HotelDetailPage, AuthPage, MyBookingsPage
 
 
 @pytest.fixture(scope="function")
@@ -471,170 +363,124 @@ def setup_tc6_cancelled_booking(test_app, test_db):
             test_db.session.rollback()
 
 
-def test_tc5_room_available_when_checkin_equals_previous_checkout(live_server, driver, setup_tc5_boundary_checkin):
+def test_tc5_room_available_when_checkin_equals_previous_checkout(live_server, selenium_driver, setup_tc5_boundary_checkin):
     """
     TC5: Ngày check-in của đơn mới trùng với ngày check-out của đơn CONFIRMED trước đó (2026-10-12).
-    Phòng không bị tính là trùng lịch và hiển thị khả dụng (Available), nút 'Đặt phòng' enabled.
+    Sử dụng HotelDetailPage theo chuẩn Page Object Model.
     """
     data = setup_tc5_boundary_checkin
-    hotel_id = data["hotel_id"]
-    room_type_id = data["room_type_id"]
-    room_type_name = data["room_type_name"]
-
-    driver.get(f"{live_server.url}/rooms?hotel_id={hotel_id}")
-    wait = WebDriverWait(driver, 10)
-
-    search_room_dates(driver, "2026-10-12", "2026-10-14")
+    hotel_page = HotelDetailPage(selenium_driver)
+    hotel_page.open_page(live_server.url, data["hotel_id"])
+    hotel_page.set_dates_and_check("2026-10-12", "2026-10-14")
 
     # 1. Assert: Room A xuất hiện trong danh sách kết quả khả dụng
-    room_title = wait.until(EC.visibility_of_element_located((By.XPATH, f"//h5[contains(text(), '{room_type_name}')]")))
-    assert room_title.is_displayed(), f"Phòng '{room_type_name}' không hiển thị trong danh sách kết quả!"
+    assert hotel_page.is_room_type_displayed(data["room_type_name"]), f"Phòng '{data['room_type_name']}' không hiển thị!"
 
-    # 2. Assert: Nhãn trạng thái hiển thị phòng khả dụng (không phải 'Hết phòng')
-    badge = wait.until(EC.presence_of_element_located((By.ID, f"room-avail-badge-{room_type_id}")))
-    assert badge.is_displayed(), "Không tìm thấy nhãn trạng thái phòng!"
-    badge_text = badge.text.strip()
+    # 2. Assert: Nhãn trạng thái phòng thể hiện phòng khả dụng
+    badge_text = hotel_page.get_room_status_badge_text(data["room_type_id"])
+    assert badge_text is not None, "Không tìm thấy nhãn trạng thái phòng!"
     assert "Hết phòng" not in badge_text, f"Phòng bị hiển thị 'Hết phòng': {badge_text}"
     assert "Còn" in badge_text and "trống" in badge_text, f"Phòng không ở trạng thái khả dụng: {badge_text}"
 
-    # 3. Assert: Không xuất hiện thông báo lỗi trùng lịch
-    page_text_lower = driver.page_source.lower()
+    # 3. Assert: Không có thông báo lỗi trùng lịch
+    page_text_lower = selenium_driver.page_source.lower()
     assert "overlapping booking" not in page_text_lower
     assert "trùng lịch" not in page_text_lower
 
-    # 4. Assert: Nút 'Đặt phòng' (Book Now) ở trạng thái enabled
-    book_btn = wait.until(EC.presence_of_element_located((By.ID, f"room-book-btn-{room_type_id}")))
-    assert book_btn.is_displayed(), "Nút 'Đặt phòng' không hiển thị!"
-    assert book_btn.get_attribute("disabled") is None or book_btn.get_attribute("disabled") == "false"
-    assert "disabled" not in (book_btn.get_attribute("class") or "")
-    assert book_btn.is_enabled(), "Nút 'Đặt phòng' bị vô hiệu hóa!"
-    assert "Đã hết" not in book_btn.text
+    # 4. Assert: Nút Đặt phòng enabled
+    assert hotel_page.is_book_button_enabled(data["room_type_id"]), "Nút 'Đặt phòng' bị vô hiệu hóa!"
 
-    scroll_to_room_card(driver, room_type_name)
-    capture_screenshot(driver, "tc5_room_available_when_checkin_equals_previous_checkout.png")
+    hotel_page.scroll_to_room_card(data["room_type_name"])
+    hotel_page.take_screenshot("tc5_room_available_when_checkin_equals_previous_checkout.png")
 
 
-def test_tc6_room_available_when_checkout_equals_next_checkin(live_server, driver, setup_tc6_boundary_checkout):
+def test_tc6_room_available_when_checkout_equals_next_checkin(live_server, selenium_driver, setup_tc6_boundary_checkout):
     """
     TC6: Ngày check-out của đơn mới trùng với ngày check-in của đơn CONFIRMED kế tiếp (2026-10-12).
-    Phòng không bị xem là trùng lịch với đơn sau và hiển thị trong danh sách phòng trống khả dụng.
+    Sử dụng HotelDetailPage theo chuẩn Page Object Model.
     """
     data = setup_tc6_boundary_checkout
-    hotel_id = data["hotel_id"]
-    room_type_id = data["room_type_id"]
-    room_type_name = data["room_type_name"]
-
-    driver.get(f"{live_server.url}/rooms?hotel_id={hotel_id}")
-    wait = WebDriverWait(driver, 10)
-
-    search_room_dates(driver, "2026-10-10", "2026-10-12")
+    hotel_page = HotelDetailPage(selenium_driver)
+    hotel_page.open_page(live_server.url, data["hotel_id"])
+    hotel_page.set_dates_and_check("2026-10-10", "2026-10-12")
 
     # 1. Assert: Room A hiển thị trong danh sách kết quả khả dụng
-    room_title = wait.until(EC.visibility_of_element_located((By.XPATH, f"//h5[contains(text(), '{room_type_name}')]")))
-    assert room_title.is_displayed(), f"Phòng '{room_type_name}' không hiển thị trong danh sách kết quả!"
+    assert hotel_page.is_room_type_displayed(data["room_type_name"]), f"Phòng '{data['room_type_name']}' không hiển thị!"
 
     # 2. Assert: Nhãn trạng thái phòng thể hiện phòng khả dụng
-    badge = wait.until(EC.presence_of_element_located((By.ID, f"room-avail-badge-{room_type_id}")))
-    assert badge.is_displayed(), "Không tìm thấy nhãn trạng thái phòng!"
-    badge_text = badge.text.strip()
+    badge_text = hotel_page.get_room_status_badge_text(data["room_type_id"])
+    assert badge_text is not None, "Không tìm thấy nhãn trạng thái phòng!"
     assert "Hết phòng" not in badge_text, f"Phòng bị hiển thị 'Hết phòng': {badge_text}"
     assert "Còn" in badge_text and "trống" in badge_text, f"Phòng không ở trạng thái khả dụng: {badge_text}"
 
     # 3. Assert: Không xuất hiện thông báo lỗi trùng lịch
-    page_text_lower = driver.page_source.lower()
+    page_text_lower = selenium_driver.page_source.lower()
     assert "overlapping booking" not in page_text_lower
     assert "trùng lịch" not in page_text_lower
 
     # 4. Assert: Nút 'Đặt phòng' ở trạng thái enabled
-    book_btn = wait.until(EC.presence_of_element_located((By.ID, f"room-book-btn-{room_type_id}")))
-    assert book_btn.is_displayed(), "Nút 'Đặt phòng' không hiển thị!"
-    assert book_btn.get_attribute("disabled") is None or book_btn.get_attribute("disabled") == "false"
-    assert "disabled" not in (book_btn.get_attribute("class") or "")
-    assert book_btn.is_enabled(), "Nút 'Đặt phòng' bị vô hiệu hóa!"
-    assert "Đã hết" not in book_btn.text
+    assert hotel_page.is_book_button_enabled(data["room_type_id"]), "Nút 'Đặt phòng' bị vô hiệu hóa!"
 
-    scroll_to_room_card(driver, room_type_name)
-    capture_screenshot(driver, "tc6_room_available_when_checkout_equals_next_checkin.png")
+    hotel_page.scroll_to_room_card(data["room_type_name"])
+    hotel_page.take_screenshot("tc6_room_available_when_checkout_equals_next_checkin.png")
 
 
-def test_tc8_only_available_status_rooms_counted_for_today_checkin(live_server, driver, setup_tc8_today_availability):
+def test_tc8_only_available_status_rooms_counted_for_today_checkin(live_server, selenium_driver, setup_tc8_today_availability):
     """
-    TC8: Chỉ tính phòng có trạng thái vật lý AVAILABLE khi check-in trong ngày hôm nay.
-    Các phòng BOOKED và OCCUPIED bị loại trừ, số lượng phòng trống hiển thị chỉ bằng 1.
+    TC8: Chỉ tính phòng có trạng thái vật lý AVAILABLE khi check-in hôm nay.
+    Sử dụng HotelDetailPage theo chuẩn Page Object Model.
     """
     data = setup_tc8_today_availability
-    hotel_id = data["hotel_id"]
-    room_type_id = data["room_type_id"]
-    room_type_name = data["room_type_name"]
-
-    driver.get(f"{live_server.url}/rooms?hotel_id={hotel_id}")
-    wait = WebDriverWait(driver, 10)
+    hotel_page = HotelDetailPage(selenium_driver)
+    hotel_page.open_page(live_server.url, data["hotel_id"])
 
     today = get_vn_time().date()
     tomorrow = today + timedelta(days=1)
-    today_str = today.strftime("%Y-%m-%d")
-    tomorrow_str = tomorrow.strftime("%Y-%m-%d")
-
-    search_room_dates(driver, today_str, tomorrow_str)
+    hotel_page.set_dates_and_check(today.strftime("%Y-%m-%d"), tomorrow.strftime("%Y-%m-%d"))
 
     # 1. Assert: Loại phòng hiển thị
-    room_title = wait.until(EC.visibility_of_element_located((By.XPATH, f"//h5[contains(text(), '{room_type_name}')]")))
-    assert room_title.is_displayed(), f"Loại phòng '{room_type_name}' không hiển thị!"
+    assert hotel_page.is_room_type_displayed(data["room_type_name"]), f"Loại phòng '{data['room_type_name']}' không hiển thị!"
 
-    # 2. Assert: Số lượng phòng trống hiển thị cho loại phòng này chỉ bằng 1 (chỉ tính Phòng 101 AVAILABLE)
-    badge = wait.until(EC.presence_of_element_located((By.ID, f"room-avail-badge-{room_type_id}")))
-    assert badge.is_displayed(), "Không tìm thấy nhãn trạng thái phòng!"
-    badge_text = badge.text.strip()
-    assert badge_text == "Còn 1 trống", f"Số lượng phòng trống không phải là 1! Thực tế hiển thị: '{badge_text}'"
+    # 2. Assert: Số lượng phòng trống hiển thị chỉ bằng 1
+    badge_text = hotel_page.get_room_status_badge_text(data["room_type_id"])
+    assert badge_text == "Còn 1 trống", f"Số lượng phòng trống không phải là 1! Thực tế: '{badge_text}'"
 
-    # 3. Assert: Nút đặt phòng vẫn enabled
-    book_btn = wait.until(EC.presence_of_element_located((By.ID, f"room-book-btn-{room_type_id}")))
-    assert book_btn.is_enabled(), "Nút 'Đặt phòng' bị vô hiệu hóa dù còn 1 phòng AVAILABLE!"
+    # 3. Assert: Nút đặt phòng enabled
+    assert hotel_page.is_book_button_enabled(data["room_type_id"]), "Nút 'Đặt phòng' bị vô hiệu hóa!"
 
-    scroll_to_room_card(driver, room_type_name)
-    capture_screenshot(driver, "tc8_only_available_status_rooms_counted_for_today.png")
+    hotel_page.scroll_to_room_card(data["room_type_name"])
+    hotel_page.take_screenshot("tc8_only_available_status_rooms_counted_for_today.png")
 
 
-def test_tc6_cancelled_booking_cannot_perform_further_actions(live_server, driver, setup_tc6_cancelled_booking):
+def test_tc6_cancelled_booking_cannot_perform_further_actions(live_server, selenium_driver, setup_tc6_cancelled_booking):
     """
-    TC6 (Cancelled Booking): Đơn đặt phòng ở trạng thái CANCELLED ('Đã hủy') bị khóa mọi thao tác:
-    - Huy hiệu trạng thái hiển thị rõ là 'Đã hủy'.
-    - Nút 'Hủy đặt phòng' và nút 'Thanh toán' hoàn toàn không hiển thị trên giao diện.
+    TC6 (Cancelled Booking): Đơn CANCELLED ('Đã hủy') bị khóa mọi thao tác.
+    Sử dụng AuthPage và MyBookingsPage theo chuẩn Page Object Model.
     """
     data = setup_tc6_cancelled_booking
-    username = data["customer_username"]
-    password = data["customer_password"]
-    booking_id = data["booking_id"]
 
-    # Đăng nhập bằng tài khoản khách hàng
-    login_customer(driver, live_server.url, username, password)
+    # Đăng nhập bằng AuthPage
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login(data["customer_username"], data["customer_password"])
 
-    # Truy cập trang Đơn của tôi (/my-bookings)
-    driver.get(f"{live_server.url}/my-bookings")
-    wait = WebDriverWait(driver, 10)
+    # Điều hướng tới MyBookingsPage
+    my_bookings = MyBookingsPage(selenium_driver)
+    my_bookings.open_page(live_server.url)
 
-    # Tìm card của đơn đã hủy (chứa mã booking #booking_id)
-    booking_card = wait.until(
-        EC.presence_of_element_located((
-            By.XPATH, f"//div[contains(@class, 'card')][.//span[contains(text(), '#{booking_id}')]]"
-        ))
-    )
-    driver.execute_script("arguments[0].scrollIntoView({behavior: 'instant', block: 'center'});", booking_card)
-    time.sleep(0.5)
+    # Tìm thẻ đơn đặt phòng
+    card = my_bookings.get_booking_card(data["booking_id"])
+    assert card is not None, "Không tìm thấy thẻ đơn đặt phòng đã hủy!"
+    my_bookings.scroll_to_card(card)
 
-    # 1. Assert: Huy hiệu trạng thái của đơn hiển thị rõ là 'Đã hủy' (hoặc CANCELLED)
-    status_badge = booking_card.find_element(By.XPATH, ".//span[contains(@class, 'badge') and (contains(text(), 'Đã hủy') or contains(text(), 'CANCELLED'))]")
-    assert status_badge.is_displayed(), "Không tìm thấy huy hiệu trạng thái 'Đã hủy' của đơn!"
-    assert "Đã hủy" in status_badge.text or "CANCELLED" in status_badge.text
+    # 1. Assert: Trạng thái hiển thị 'Đã hủy' hoặc 'CANCELLED'
+    status_text = my_bookings.get_status_badge_text(card)
+    assert "Đã hủy" in status_text or "CANCELLED" in status_text, f"Trạng thái không phải 'Đã hủy': '{status_text}'"
 
-    # 2. Assert: Nút 'Hủy đặt phòng' hoàn toàn không hiển thị trên giao diện đối với đơn này
-    cancel_btns = booking_card.find_elements(By.XPATH, ".//button[contains(text(), 'Hủy đặt phòng')] | .//a[contains(text(), 'Hủy đặt phòng')]")
-    visible_cancel_btns = [b for b in cancel_btns if b.is_displayed()]
-    assert len(visible_cancel_btns) == 0, "Nút 'Hủy đặt phòng' vẫn hiển thị đối với đơn đã hủy!"
+    # 2. Assert: Nút 'Hủy đặt phòng' không hiển thị
+    assert not my_bookings.is_cancel_button_visible(card), "Nút 'Hủy đặt phòng' vẫn hiển thị đối với đơn đã hủy!"
 
-    # 3. Assert: Nút 'Thanh toán' hoàn toàn không hiển thị trên giao diện đối với đơn này
-    pay_btns = booking_card.find_elements(By.XPATH, ".//button[contains(text(), 'Thanh toán')] | .//a[contains(text(), 'Thanh toán')]")
-    visible_pay_btns = [b for b in pay_btns if b.is_displayed()]
-    assert len(visible_pay_btns) == 0, "Nút 'Thanh toán' vẫn hiển thị đối với đơn đã hủy!"
+    # 3. Assert: Nút 'Thanh toán' không hiển thị
+    assert not my_bookings.is_pay_button_visible(card), "Nút 'Thanh toán' vẫn hiển thị đối với đơn đã hủy!"
 
-    capture_screenshot(driver, "tc6_cancelled_booking_cannot_perform_further_actions.png")
+    my_bookings.take_screenshot("tc6_cancelled_booking_cannot_perform_further_actions.png")

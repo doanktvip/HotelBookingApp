@@ -1,16 +1,10 @@
 import sys
 import os
-import atexit
 import time
 import hashlib
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
@@ -19,78 +13,7 @@ from app.models import (
     Booking, BookingStatus, BookingDetail, Payment, PaymentMethod, PaymentStatus
 )
 from app.utils import get_vn_time
-
-CHROMEDRIVER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../.venv/chromedriver.exe'))
-if os.path.exists(CHROMEDRIVER_PATH):
-    service = Service(executable_path=CHROMEDRIVER_PATH)
-else:
-    service = Service()
-
-atexit.register(lambda: service.stop() if hasattr(service, 'process') and service.process else None)
-
-
-@pytest.fixture(scope="function")
-def driver():
-    options = webdriver.ChromeOptions()
-    if os.environ.get('SELENIUM_HEADLESS', '0') == '1':
-        options.add_argument('--headless=new')
-    options.add_argument('--start-maximized')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--window-size=1600,1000')
-
-    driver_instance = webdriver.Chrome(service=service, options=options)
-    driver_instance.implicitly_wait(10)
-    yield driver_instance
-    driver_instance.quit()
-
-
-def capture_screenshot(driver, filename):
-    """Chụp và lưu ảnh màn hình vào thư mục screenshots/ và đồng bộ sang brain artifacts."""
-    screenshots_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../screenshots"))
-    os.makedirs(screenshots_dir, exist_ok=True)
-    filepath = os.path.join(screenshots_dir, filename)
-    driver.save_screenshot(filepath)
-
-    brain_dir = r"C:\Users\Admin\.gemini\antigravity\brain\b1b75c48-d695-459b-8509-7a4460c89c54"
-    if os.path.exists(brain_dir):
-        try:
-            import shutil
-            shutil.copy2(filepath, os.path.join(brain_dir, filename))
-        except Exception:
-            pass
-
-    return filepath
-
-
-def login_receptionist(driver, base_url, username, password):
-    driver.get(f"{base_url}/login")
-    wait = WebDriverWait(driver, 10)
-    user_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "form[action='/login'] input[name='username']")))
-    pass_input = driver.find_element(By.CSS_SELECTOR, "form[action='/login'] input[name='password']")
-    submit_btn = driver.find_element(By.CSS_SELECTOR, "form[action='/login'] button[type='submit']")
-
-    user_input.clear()
-    user_input.send_keys(username)
-    pass_input.clear()
-    pass_input.send_keys(password)
-    submit_btn.click()
-
-    wait.until(lambda d: "/login" not in d.current_url)
-
-
-def navigate_to_bookings_tab(driver, base_url):
-    driver.get(f"{base_url}/reception/bookings?tab=list")
-    wait = WebDriverWait(driver, 10)
-    try:
-        tab_pane = wait.until(EC.presence_of_element_located((By.ID, "bookings-content")))
-        if "active" not in tab_pane.get_attribute("class"):
-            tab_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-bs-target="#bookings-content"]')))
-            driver.execute_script("arguments[0].click();", tab_btn)
-        wait.until(lambda d: "active" in d.find_element(By.ID, "bookings-content").get_attribute("class"))
-    except Exception:
-        pass
+from tests.selenium.pages import AuthPage, ManageBookingsPage
 
 
 @pytest.fixture(scope="function")
@@ -291,96 +214,76 @@ def seed_checkin_checkout_data(test_app, test_db):
             test_db.session.rollback()
 
 
-def get_booking_row(driver, booking_id):
-    booking_code = f"BK{booking_id:03d}"
-    xpath = f"//tr[contains(@data-booking-code, '{booking_code}') or .//td[contains(text(), '{booking_code}')]]"
-    wait = WebDriverWait(driver, 10)
-    row = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
-    return row
-
-
-def get_status_text(row):
-    status_el = row.find_element(By.CSS_SELECTOR, ".status-cell")
-    text = (status_el.text or "").strip()
-    if not text:
-        text = (status_el.get_attribute("textContent") or "").strip()
-    return text
-
-
-def test_tc15_cannot_checkin_non_confirmed_booking(live_server, driver, seed_checkin_checkout_data):
+def test_tc15_cannot_checkin_non_confirmed_booking(live_server, selenium_driver, seed_checkin_checkout_data):
     """
     TC15: Không thể Check-in đơn không ở trạng thái 'Đã đặt' (đơn đang sử dụng / CHECKED_IN).
     """
-    login_receptionist(
-        driver, live_server.url,
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login(
         seed_checkin_checkout_data["receptionist_username"],
         seed_checkin_checkout_data["receptionist_password"]
     )
-    navigate_to_bookings_tab(driver, live_server.url)
 
-    row = get_booking_row(driver, seed_checkin_checkout_data["bk_in_use_id"])
-    assert "Đang sử dụng" in get_status_text(row)
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
 
-    checkin_btns = row.find_elements(By.CSS_SELECTOR, "button[value='checkin'], .checkin-btn")
-    assert len(checkin_btns) == 0 or not checkin_btns[0].is_displayed() or checkin_btns[0].get_attribute("disabled") is not None, \
+    row = manage_page.get_booking_row_by_id(seed_checkin_checkout_data["bk_in_use_id"])
+    assert "Đang sử dụng" in manage_page.get_row_status_text(row)
+    assert not manage_page.has_checkin_button(row), \
         "Nút Check-in vẫn xuất hiện hoặc đang khả dụng cho đơn đã nhận phòng (Đang sử dụng)!"
 
-    capture_screenshot(driver, "reception_tc15_cannot_checkin_non_confirmed.png")
+    manage_page.take_screenshot("reception_tc15_cannot_checkin_non_confirmed.png")
 
 
-def test_tc16_cannot_checkin_cancelled_booking(live_server, driver, seed_checkin_checkout_data):
+def test_tc16_cannot_checkin_cancelled_booking(live_server, selenium_driver, seed_checkin_checkout_data):
     """
     TC16: Chặn hoàn toàn thao tác nhận phòng đối với đơn đã bị hủy (CANCELLED).
     """
-    login_receptionist(
-        driver, live_server.url,
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login(
         seed_checkin_checkout_data["receptionist_username"],
         seed_checkin_checkout_data["receptionist_password"]
     )
-    navigate_to_bookings_tab(driver, live_server.url)
 
-    row = get_booking_row(driver, seed_checkin_checkout_data["bk_cancelled_id"])
-    assert "Đã hủy" in get_status_text(row)
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
 
-    checkin_btns = row.find_elements(By.CSS_SELECTOR, "button[value='checkin'], .checkin-btn")
-    assert len(checkin_btns) == 0 or not checkin_btns[0].is_displayed(), \
+    row = manage_page.get_booking_row_by_id(seed_checkin_checkout_data["bk_cancelled_id"])
+    assert "Đã hủy" in manage_page.get_row_status_text(row)
+    assert not manage_page.has_checkin_button(row), \
         "Nút Check-in vẫn xuất hiện cho đơn đã bị hủy (CANCELLED)!"
 
-    capture_screenshot(driver, "reception_tc16_cannot_checkin_cancelled.png")
+    manage_page.take_screenshot("reception_tc16_cannot_checkin_cancelled.png")
 
 
-def test_tc18_booking_status_completed_after_successful_checkout(live_server, driver, test_app, test_db, seed_checkin_checkout_data):
+def test_tc18_booking_status_completed_after_successful_checkout(live_server, selenium_driver, test_app, test_db, seed_checkin_checkout_data):
     """
     TC18: Check-out thành công chuyển trạng thái đơn sang 'Hoàn thành' (COMPLETED)
     và giải phóng phòng Room-101 về trạng thái AVAILABLE.
     """
-    login_receptionist(
-        driver, live_server.url,
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login(
         seed_checkin_checkout_data["receptionist_username"],
         seed_checkin_checkout_data["receptionist_password"]
     )
-    navigate_to_bookings_tab(driver, live_server.url)
 
-    wait = WebDriverWait(driver, 10)
-    checkout_btn = wait.until(EC.element_to_be_clickable((By.ID, f"checkout-btn-{seed_checkin_checkout_data['bk_in_use_id']}")))
-    driver.execute_script("arguments[0].click();", checkout_btn)
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
 
-    wait.until(EC.visibility_of_element_located((By.ID, "checkoutModal")))
+    manage_page.click_checkout(seed_checkin_checkout_data["bk_in_use_id"])
+    manage_page.confirm_checkout()
 
-    confirm_btn = wait.until(EC.element_to_be_clickable((By.ID, "confirmCheckoutBtn")))
-    driver.execute_script("arguments[0].click();", confirm_btn)
+    manage_page.open_page(live_server.url)
 
-    wait.until(EC.staleness_of(confirm_btn))
-
-    navigate_to_bookings_tab(driver, live_server.url)
-
-    row = get_booking_row(driver, seed_checkin_checkout_data["bk_in_use_id"])
-    status_text = get_status_text(row)
+    row = manage_page.get_booking_row_by_id(seed_checkin_checkout_data["bk_in_use_id"])
+    status_text = manage_page.get_row_status_text(row)
     assert any(s in status_text for s in ["Hoàn thành", "Đã hoàn tất", "COMPLETED"]), \
         f"Trạng thái hiển thị trên giao diện chưa đổi thành Hoàn tất! Thực tế: {status_text}"
 
-    capture_screenshot(driver, "reception_tc18_checkout_success_completed.png")
+    manage_page.take_screenshot("reception_tc18_checkout_success_completed.png")
 
     with test_app.app_context():
         test_db.session.expire_all()
@@ -390,64 +293,55 @@ def test_tc18_booking_status_completed_after_successful_checkout(live_server, dr
         assert booking.status == BookingStatus.COMPLETED, f"Trạng thái đơn trong DB chưa là COMPLETED! Thực tế: {booking.status}"
 
 
-def test_tc19_cannot_checkout_non_checked_in_booking(live_server, driver, seed_checkin_checkout_data):
+def test_tc19_cannot_checkout_non_checked_in_booking(live_server, selenium_driver, seed_checkin_checkout_data):
     """
     TC19: Không thể thực hiện trả phòng khi khách chưa check-in (đơn ở trạng thái CONFIRMED).
     """
-    login_receptionist(
-        driver, live_server.url,
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login(
         seed_checkin_checkout_data["receptionist_username"],
         seed_checkin_checkout_data["receptionist_password"]
     )
-    navigate_to_bookings_tab(driver, live_server.url)
 
-    row = get_booking_row(driver, seed_checkin_checkout_data["bk_confirmed_id"])
-    assert "Đang sử dụng" not in get_status_text(row)
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
 
-    checkout_btns = row.find_elements(By.CSS_SELECTOR, "button[onclick*='openCheckoutModal'], .checkout-btn")
-    assert len(checkout_btns) == 0 or not checkout_btns[0].is_displayed() or checkout_btns[0].get_attribute("disabled") is not None, \
+    row = manage_page.get_booking_row_by_id(seed_checkin_checkout_data["bk_confirmed_id"])
+    assert "Đang sử dụng" not in manage_page.get_row_status_text(row)
+    assert not manage_page.has_checkout_button(row), \
         "Nút Check-out vẫn xuất hiện hoặc đang khả dụng cho đơn chưa nhận phòng (CONFIRMED)!"
 
-    capture_screenshot(driver, "reception_tc19_cannot_checkout_non_checked_in.png")
+    manage_page.take_screenshot("reception_tc19_cannot_checkout_non_checked_in.png")
 
 
-def test_tc20_cannot_checkout_when_payment_incomplete(live_server, driver, test_app, test_db, seed_checkin_checkout_data):
+def test_tc20_cannot_checkout_when_payment_incomplete(live_server, selenium_driver, test_app, test_db, seed_checkin_checkout_data):
     """
     TC20: Hệ thống hiển thị cảnh báo yêu cầu thanh toán đầy đủ trước khi trả phòng;
     đơn giữ nguyên trạng thái 'Đang sử dụng' (CHECKED_IN).
     """
-    login_receptionist(
-        driver, live_server.url,
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login(
         seed_checkin_checkout_data["receptionist_username"],
         seed_checkin_checkout_data["receptionist_password"]
     )
-    navigate_to_bookings_tab(driver, live_server.url)
 
-    wait = WebDriverWait(driver, 10)
-    checkout_btn = wait.until(EC.element_to_be_clickable((By.ID, f"checkout-btn-{seed_checkin_checkout_data['bk_unpaid_id']}")))
-    driver.execute_script("arguments[0].click();", checkout_btn)
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
 
-    wait.until(EC.visibility_of_element_located((By.ID, "checkoutModal")))
+    manage_page.click_checkout(seed_checkin_checkout_data["bk_unpaid_id"])
+    details = manage_page.get_checkout_modal_details()
+    assert details["balance"] != "0 đ", "Số dư cần thanh toán phải lớn hơn 0 đối với đơn chưa trả đủ tiền!"
+    assert details["is_confirm_disabled"] or details["alert_displayed"], \
+        "Hệ thống không chặn hoặc cảnh báo khi đơn còn khoản nợ chưa thanh toán!"
 
-    wait.until(lambda d: d.find_element(By.ID, "checkout_balance").text != "0 đ")
+    manage_page.take_screenshot("reception_tc20_checkout_unpaid_warning.png")
 
-    balance_text = driver.find_element(By.ID, "checkout_balance").text
-    assert balance_text != "0 đ", "Số dư cần thanh toán phải lớn hơn 0 đối với đơn chưa trả đủ tiền!"
+    manage_page.close_checkout_modal()
 
-    confirm_btn = driver.find_element(By.ID, "confirmCheckoutBtn")
-    alert_box = driver.find_element(By.ID, "checkout_alert")
-    is_btn_blocked = (confirm_btn.get_attribute("disabled") is not None) or (not confirm_btn.is_enabled())
-    is_warning_shown = alert_box.is_displayed() or ("Yêu cầu thanh toán thêm" in confirm_btn.text)
-    assert is_btn_blocked or is_warning_shown, "Hệ thống không chặn hoặc cảnh báo khi đơn còn khoản nợ chưa thanh toán!"
-
-    capture_screenshot(driver, "reception_tc20_checkout_unpaid_warning.png")
-
-    close_btn = driver.find_element(By.CSS_SELECTOR, "#checkoutModal .btn-close")
-    driver.execute_script("arguments[0].click();", close_btn)
-    wait.until(EC.invisibility_of_element_located((By.ID, "checkoutModal")))
-
-    row = get_booking_row(driver, seed_checkin_checkout_data["bk_unpaid_id"])
-    assert "Đang sử dụng" in get_status_text(row)
+    row = manage_page.get_booking_row_by_id(seed_checkin_checkout_data["bk_unpaid_id"])
+    assert "Đang sử dụng" in manage_page.get_row_status_text(row)
 
     with test_app.app_context():
         test_db.session.expire_all()
@@ -455,33 +349,28 @@ def test_tc20_cannot_checkout_when_payment_incomplete(live_server, driver, test_
         assert booking.status == BookingStatus.CONFIRMED, "Trạng thái đơn bị thay đổi dù chưa thanh toán đủ!"
 
 
-def test_tc21_cancel_checkout_modal_action(live_server, driver, test_app, test_db, seed_checkin_checkout_data):
+def test_tc21_cancel_checkout_modal_action(live_server, selenium_driver, test_app, test_db, seed_checkin_checkout_data):
     """
     TC21: Hủy hoặc đóng modal thanh toán: modal đóng, trạng thái đơn giữ nguyên 'Đang sử dụng',
     phòng Room-101 vẫn giữ nguyên OCCUPIED.
     """
-    login_receptionist(
-        driver, live_server.url,
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login(
         seed_checkin_checkout_data["receptionist_username"],
         seed_checkin_checkout_data["receptionist_password"]
     )
-    navigate_to_bookings_tab(driver, live_server.url)
 
-    wait = WebDriverWait(driver, 10)
-    checkout_btn = wait.until(EC.element_to_be_clickable((By.ID, f"checkout-btn-{seed_checkin_checkout_data['bk_in_use_id']}")))
-    driver.execute_script("arguments[0].click();", checkout_btn)
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
 
-    wait.until(EC.visibility_of_element_located((By.ID, "checkoutModal")))
+    manage_page.click_checkout(seed_checkin_checkout_data["bk_in_use_id"])
+    manage_page.close_checkout_modal()
 
-    cancel_btn = driver.find_element(By.ID, "cancelCheckoutBtn")
-    driver.execute_script("arguments[0].click();", cancel_btn)
+    row = manage_page.get_booking_row_by_id(seed_checkin_checkout_data["bk_in_use_id"])
+    assert "Đang sử dụng" in manage_page.get_row_status_text(row)
 
-    wait.until(EC.invisibility_of_element_located((By.ID, "checkoutModal")))
-
-    row = get_booking_row(driver, seed_checkin_checkout_data["bk_in_use_id"])
-    assert "Đang sử dụng" in get_status_text(row)
-
-    capture_screenshot(driver, "reception_tc21_cancel_checkout_modal.png")
+    manage_page.take_screenshot("reception_tc21_cancel_checkout_modal.png")
 
     with test_app.app_context():
         test_db.session.expire_all()

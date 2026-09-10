@@ -57,3 +57,8 @@ class AuthPage(BasePage):
         
     def get_toast_message(self):
         return self.get_text(*self.TOAST_MESSAGE)
+
+    def is_logged_in_as(self, username):
+        return self.is_displayed(By.XPATH, f"//span[contains(text(), '{username}')]")
+
+

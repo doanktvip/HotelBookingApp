@@ -1,16 +1,9 @@
 import sys
 import os
-import atexit
-import time
 import hashlib
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 import pytest
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait, Select
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
 
 # Đảm bảo đường dẫn root dự án có trong sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
@@ -20,75 +13,16 @@ from app.models import (
     Booking, BookingStatus, BookingDetail, Payment
 )
 from app.utils import get_vn_time
-
-# Khởi tạo ChromeDriver service
-CHROMEDRIVER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../.venv/chromedriver.exe'))
-if os.path.exists(CHROMEDRIVER_PATH):
-    service = Service(executable_path=CHROMEDRIVER_PATH)
-else:
-    service = Service()
-
-# Tự động dừng ChromeDriver service khi kết thúc
-atexit.register(lambda: service.stop() if hasattr(service, 'process') and service.process else None)
+from unittest.mock import patch
+from app.services.checkout_service import CheckoutService
+from tests.selenium.pages import AuthPage, ManageBookingsPage
 
 
-@pytest.fixture(scope="function")
-def driver():
-    """Khởi tạo Chrome WebDriver hiển thị trực quan (non-headless) để theo dõi và chụp ảnh minh chứng."""
-    options = webdriver.ChromeOptions()
-    if os.environ.get('SELENIUM_HEADLESS', '0') == '1':
-        options.add_argument('--headless=new')
-    options.add_argument('--start-maximized')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--window-size=1600,1000')
-
-    driver_instance = webdriver.Chrome(service=service, options=options)
-    driver_instance.implicitly_wait(10)
-    yield driver_instance
-    driver_instance.quit()
-
-
-def capture_screenshot(driver, filename):
-    """Chụp và lưu ảnh màn hình vào thư mục screenshots/ làm minh chứng kết quả kiểm thử."""
-    screenshots_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../screenshots"))
-    os.makedirs(screenshots_dir, exist_ok=True)
-    filepath = os.path.join(screenshots_dir, filename)
-    driver.save_screenshot(filepath)
-    return filepath
-
-
-def login_user(driver, base_url, username, password):
-    """Hỗ trợ đăng nhập qua giao diện web (/login)."""
-    driver.get(f"{base_url}/login")
-    wait = WebDriverWait(driver, 10)
-    user_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "form[action='/login'] input[name='username']")))
-    pass_input = driver.find_element(By.CSS_SELECTOR, "form[action='/login'] input[name='password']")
-    submit_btn = driver.find_element(By.CSS_SELECTOR, "form[action='/login'] button[type='submit']")
-
-    user_input.clear()
-    user_input.send_keys(username)
-    pass_input.clear()
-    pass_input.send_keys(password)
-    submit_btn.click()
-
-    # Chờ redirect ra khỏi trang login
-    wait.until(lambda d: "/login" not in d.current_url)
-
-
-def navigate_to_bookings_tab(driver, base_url):
-    """Điều hướng đến tab 'Danh sách đơn' trên trang Quản lý của Lễ tân."""
-    driver.get(f"{base_url}/reception/bookings?tab=list")
-    wait = WebDriverWait(driver, 10)
-    try:
-        tab_pane = wait.until(EC.presence_of_element_located((By.ID, "bookings-content")))
-        if "active" not in tab_pane.get_attribute("class"):
-            tab_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-bs-target="#bookings-content"]')))
-            driver.execute_script("arguments[0].click();", tab_btn)
-        wait.until(lambda d: "active" in d.find_element(By.ID, "bookings-content").get_attribute("class"))
-    except Exception:
-        pass
+@pytest.fixture(scope="module", autouse=True)
+def disable_auto_checkout_during_search():
+    """Tắt cơ chế auto checkout trong lúc kiểm thử tìm kiếm để đơn BK003 không bị chuyển trạng thái."""
+    with patch.object(CheckoutService, "process_auto_checkout", return_value=None):
+        yield
 
 
 @pytest.fixture(scope="module")
@@ -334,7 +268,7 @@ def seed_reception_test_data(test_app, test_db):
 # TEST CASES
 # ==============================================================================
 
-def test_tc3_access_denied_for_customer_role(live_server, driver, seed_reception_test_data):
+def test_tc3_access_denied_for_customer_role(live_server, selenium_driver, seed_reception_test_data):
     """
     TC3: Kiểm thử phân quyền truy cập:
     - Precondition: Đăng nhập tài khoản Customer (role=CUSTOMER).
@@ -343,31 +277,31 @@ def test_tc3_access_denied_for_customer_role(live_server, driver, seed_reception
       không hiển thị bảng điều khiển lễ tân.
     - Minh chứng: Chụp ảnh reception_tc3_access_denied.png.
     """
-    login_user(driver, live_server.url, "test_customer", "123456")
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login("test_customer", "123456")
 
-    # Truy cập URL của Lễ tân
-    driver.get(f"{live_server.url}/reception/bookings")
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open(f"{live_server.url}/reception/bookings")
 
-    wait = WebDriverWait(driver, 10)
     # Chờ trang lỗi 403 hiển thị
-    wait.until(lambda d: "403" in d.page_source or "Forbidden" in d.page_source or "Không có quyền truy cập" in d.page_source)
+    manage_page.wait.until(lambda d: "403" in d.page_source or "Forbidden" in d.page_source or "Không có quyền truy cập" in d.page_source)
 
     # Lưu ảnh minh chứng
-    capture_screenshot(driver, "reception_tc3_access_denied.png")
+    manage_page.take_screenshot("reception_tc3_access_denied.png")
 
     # Assert 1: Thông báo lỗi 403 và thông điệp chặn truy cập
-    page_source = driver.page_source
+    page_source = selenium_driver.page_source
     assert "403" in page_source or "Forbidden" in page_source, "Không tìm thấy mã lỗi 403 hoặc Forbidden trên giao diện!"
     assert any(msg in page_source for msg in ["Không có quyền truy cập", "Forbidden", "You don't have the permission"]), \
         "Giao diện không hiển thị thông báo lỗi chặn truy cập 403!"
 
     # Assert 2: Không hiển thị bảng hay bộ lọc lễ tân
-    assert len(driver.find_elements(By.ID, "search-input")) == 0, "Giao diện vẫn hiển thị ô tìm kiếm lễ tân!"
-    assert len(driver.find_elements(By.ID, "receptionTabsContent")) == 0, "Giao diện vẫn hiển thị nội dung phân hệ lễ tân!"
-    time.sleep(1)
+    assert len(selenium_driver.find_elements(*manage_page.SEARCH_INPUT)) == 0, "Giao diện vẫn hiển thị ô tìm kiếm lễ tân!"
+    assert len(selenium_driver.find_elements(*manage_page.TAB_LIST)) == 0, "Giao diện vẫn hiển thị tab lễ tân!"
 
 
-def test_tc2_priority_sorting_for_today_checkin_checkout(live_server, driver, seed_reception_test_data):
+def test_tc2_priority_sorting_for_today_checkin_checkout(live_server, selenium_driver, seed_reception_test_data):
     """
     TC2: Kiểm thử sắp xếp ưu tiên đơn check-in/out trong ngày:
     - Precondition: Đăng nhập tài khoản Receptionist (role=RECEPTIONIST), mở danh sách đơn.
@@ -376,14 +310,14 @@ def test_tc2_priority_sorting_for_today_checkin_checkout(live_server, driver, se
       hiển thị ở các hàng đầu tiên trước đơn tương lai (BK004).
     - Minh chứng: Chụp ảnh reception_tc2_priority_sorting.png.
     """
-    login_user(driver, live_server.url, "test_receptionist", "123456")
-    navigate_to_bookings_tab(driver, live_server.url)
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login("test_receptionist", "123456")
 
-    wait = WebDriverWait(driver, 10)
-    wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".booking-code-cell")))
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
 
-    code_cells = driver.find_elements(By.CSS_SELECTOR, ".booking-code-cell")
-    codes = [cell.text.strip() for cell in code_cells]
+    codes = manage_page.get_booking_codes()
 
     # Assert 1: Các đơn mẫu xuất hiện đầy đủ
     assert "BK002" in codes, "Đơn BK002 (check-in hôm nay) không có trong danh sách!"
@@ -398,11 +332,10 @@ def test_tc2_priority_sorting_for_today_checkin_checkout(live_server, driver, se
     assert codes.index("BK003") < codes.index("BK004"), "BK003 không được ưu tiên trước BK004!"
 
     # Lưu ảnh minh chứng
-    capture_screenshot(driver, "reception_tc2_priority_sorting.png")
-    time.sleep(1)
+    manage_page.take_screenshot("reception_tc2_priority_sorting.png")
 
 
-def test_tc12_filter_bookings_by_status(live_server, driver, seed_reception_test_data):
+def test_tc12_filter_bookings_by_status(live_server, selenium_driver, seed_reception_test_data):
     """
     TC12: Kiểm thử bộ lọc trạng thái đơn:
     - Precondition: Đăng nhập Lễ tân, mở danh sách đơn.
@@ -411,22 +344,15 @@ def test_tc12_filter_bookings_by_status(live_server, driver, seed_reception_test
       các đơn CONFIRMED chưa ở (BK002, BK004) bị ẩn hoàn toàn.
     - Minh chứng: Chụp ảnh reception_tc12_filter_status.png.
     """
-    login_user(driver, live_server.url, "test_receptionist", "123456")
-    navigate_to_bookings_tab(driver, live_server.url)
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login("test_receptionist", "123456")
 
-    wait = WebDriverWait(driver, 10)
-    status_select_el = wait.until(EC.presence_of_element_located((By.ID, "status-filter")))
-    select = Select(status_select_el)
-    select.select_by_value("CHECKED_IN")
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
+    manage_page.search(status="CHECKED_IN")
 
-    search_btn = driver.find_element(By.ID, "search-btn")
-    driver.execute_script("arguments[0].click();", search_btn)
-
-    # Chờ danh sách tải lại sau khi lọc
-    wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".booking-code-cell")))
-
-    code_cells = driver.find_elements(By.CSS_SELECTOR, ".booking-code-cell")
-    codes = [cell.text.strip() for cell in code_cells]
+    codes = manage_page.get_booking_codes()
 
     # Assert 1: Chỉ BK001 và BK003 hiển thị
     assert set(codes) == {"BK001", "BK003"}, f"Danh sách sau lọc không khớp với {'BK001', 'BK003'}! Thực tế: {codes}"
@@ -436,13 +362,13 @@ def test_tc12_filter_bookings_by_status(live_server, driver, seed_reception_test
     assert "BK004" not in codes, "BK004 (chưa nhận phòng) vẫn hiển thị khi lọc 'Đang sử dụng'!"
 
     # Assert 3: Nhãn trạng thái hiển thị đúng 'Đang sử dụng'
-    status_badges = driver.find_elements(By.CSS_SELECTOR, ".status-cell")
-    for badge in status_badges:
-        assert "Đang sử dụng" in badge.text, f"Nhãn trạng thái không phải 'Đang sử dụng': {badge.text}"
+    rows = manage_page.get_booking_rows()
+    for row in rows:
+        status_text = manage_page.get_row_status_text(row)
+        assert "Đang sử dụng" in status_text, f"Nhãn trạng thái không phải 'Đang sử dụng': {status_text}"
 
     # Lưu ảnh minh chứng
-    capture_screenshot(driver, "reception_tc12_filter_status.png")
-    time.sleep(1)
+    manage_page.take_screenshot("reception_tc12_filter_status.png")
 
 
 @pytest.mark.parametrize("tc_id,keyword,expected_codes,screenshot_filename", [
@@ -454,7 +380,7 @@ def test_tc12_filter_bookings_by_status(live_server, driver, seed_reception_test
     ("tc11_whitespace", "  BK001  ", ["BK001"], "reception_tc11_search_whitespace.png"),
 ])
 def test_search_bookings_scenarios(
-    live_server, driver, seed_reception_test_data,
+    live_server, selenium_driver, seed_reception_test_data,
     tc_id, keyword, expected_codes, screenshot_filename
 ):
     """
@@ -467,33 +393,25 @@ def test_search_bookings_scenarios(
     - TC11: Tìm kiếm có khoảng trắng thừa -> Hệ thống tự strip khoảng trắng và trả về BK001
     Mỗi kịch bản đều lưu ảnh chụp màn hình minh chứng riêng biệt vào screenshots/.
     """
-    login_user(driver, live_server.url, "test_receptionist", "123456")
-    navigate_to_bookings_tab(driver, live_server.url)
+    auth_page = AuthPage(selenium_driver)
+    auth_page.open_page(live_server.url)
+    auth_page.login("test_receptionist", "123456")
 
-    wait = WebDriverWait(driver, 10)
-    search_input = wait.until(EC.presence_of_element_located((By.ID, "search-input")))
-    search_input.clear()
-    if keyword:
-        search_input.send_keys(keyword)
-
-    search_btn = driver.find_element(By.ID, "search-btn")
-    driver.execute_script("arguments[0].click();", search_btn)
+    manage_page = ManageBookingsPage(selenium_driver)
+    manage_page.open_page(live_server.url)
+    manage_page.search(text=keyword)
 
     if not expected_codes:
         # Trường hợp không tìm thấy kết quả (TC8)
-        empty_cell = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".empty-bookings-cell")))
-        assert "Không tìm thấy thông tin đặt chỗ phù hợp" in empty_cell.text, \
-            f"Thông báo bảng rỗng không đúng! Thực tế: {empty_cell.text}"
-        booking_rows = driver.find_elements(By.CSS_SELECTOR, ".booking-row")
-        assert len(booking_rows) == 0, f"Vẫn còn hàng hiển thị khi tìm kiếm không ra kết quả: {len(booking_rows)}"
+        assert manage_page.is_empty_message_displayed(), "Không hiển thị thông báo kết quả rỗng!"
+        assert "Không tìm thấy thông tin đặt chỗ phù hợp" in manage_page.get_empty_message_text(), \
+            f"Thông báo bảng rỗng không đúng! Thực tế: {manage_page.get_empty_message_text()}"
+        assert len(manage_page.get_booking_rows()) == 0, f"Vẫn còn hàng hiển thị khi tìm kiếm không ra kết quả!"
     else:
         # Trường hợp có kết quả trả về
-        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".booking-code-cell")))
-        code_cells = driver.find_elements(By.CSS_SELECTOR, ".booking-code-cell")
-        actual_codes = [c.text.strip() for c in code_cells]
+        actual_codes = manage_page.get_booking_codes()
         assert set(actual_codes) == set(expected_codes), \
             f"[{tc_id}] Kết quả tìm kiếm cho '{keyword}' không khớp! Mong đợi: {expected_codes}, Thực tế: {actual_codes}"
 
     # Chụp và lưu ảnh minh chứng cho từng case
-    capture_screenshot(driver, screenshot_filename)
-    time.sleep(1)
+    manage_page.take_screenshot(screenshot_filename)

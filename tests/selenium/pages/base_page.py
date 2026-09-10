@@ -76,9 +76,23 @@ class BasePage:
             return False
 
     def take_screenshot(self, name):
+        import shutil
         os.makedirs("screenshots", exist_ok=True)
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        filepath = f"screenshots/{name}_{timestamp}.png"
+        if not name.endswith(".png"):
+            filepath = f"screenshots/{name}.png"
+            filename = f"{name}.png"
+        else:
+            filepath = f"screenshots/{name}"
+            filename = name
+
         self.driver.save_screenshot(filepath)
+
+        brain_dir = r"C:\Users\Admin\.gemini\antigravity\brain\b1b75c48-d695-459b-8509-7a4460c89c54"
+        if os.path.exists(brain_dir):
+            try:
+                shutil.copy2(filepath, os.path.join(brain_dir, filename))
+            except Exception:
+                pass
         return filepath
+
 

@@ -95,11 +95,11 @@ def test_checkin(live_server, selenium_driver, setup_recept_data):
     # TC14: Valid checkin
     page.click_checkin(b1)
     
-    # Thao tác click_checkin sẽ reload trang. Trạng thái hiển thị sẽ thành 'Đang dùng'
+    # Thao tác click_checkin sẽ reload trang. Trạng thái hiển thị sẽ thành 'Đang sử dụng'
     page.open(f"{live_server.url}{page.URL}")
     page.search(text=f"BK-{b1}")
     row_html = page.get_booking_rows()[0].get_attribute('innerHTML')
-    assert "Đang dùng" in row_html
+    assert ("Đang dùng" in row_html) or ("Đang sử dụng" in row_html)
     
     # TC15: Already occupied -> should not have checkin button
     page.search(text=f"BK-{b2}")
@@ -122,6 +122,7 @@ def test_checkout_flow(live_server, selenium_driver, setup_recept_data):
     
     # TC17: Thực hiện check-out trực tiếp
     page.click_checkout(b1)
+    page.confirm_checkout()
     
     # Sau khi xác nhận, reload danh sách
     page.open(f"{live_server.url}{page.URL}")
