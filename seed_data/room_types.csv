@@ -1,0 +1,17 @@
+hotel_name,name,description,base_price,max_occupancy,bed_count,bed_type,image_url
+Wyndham Legend Halong,Standard,Phòng tiêu chuẩn tiện nghi cơ bản ấm cúng với đầy đủ trang thiết bị hiện đại.,800000,2,1,giường đôi,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213198/Standard1_afqhsk.webp
+Wyndham Legend Halong,Superior,Phòng chất lượng cao không gian rộng rãi và tầm nhìn thoáng đãng.,1200000,2,2,giường đơn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213203/Superior1_hpfpfj.jpg
+Wyndham Legend Halong,Deluxe,Phòng sang trọng ở tầng cao nội thất cao cấp ban công ngắm toàn cảnh vịnh.,2000000,2,1,giường đôi lớn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe1_etbfsb.webp
+Wyndham Legend Halong,Suite,Phòng thượng hạng diện tích rộng có phòng khách và phòng ngủ riêng biệt.,4500000,4,2,giường đôi lớn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213201/Suite1_xoxnnx.webp
+Wyndham Legend Halong,Family Room,Phòng gia đình rộng rãi bố trí nhiều giường phù hợp cho kỳ nghỉ ấm cúng.,3500000,4,3,giường đôi và đơn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Family_Room1_udwamd.webp
+FLC Grand Hotel Hạ Long,Standard,Phòng tiêu chuẩn thiết kế tinh tế đầy đủ tiện nghi cho chuyến công tác.,850000,2,1,giường đôi,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213199/Standard2_wu01wl.webp
+FLC Grand Hotel Hạ Long,Superior,Phòng cao cấp không gian thư thái hướng vườn đồi thanh bình.,1300000,2,2,giường đơn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213204/Superior2_bkojp9.jpg
+FLC Grand Hotel Hạ Long,Deluxe,Phòng Deluxe phong cách hoàng gia hướng biển ngắm trọn kỳ quan.,2200000,2,1,giường đôi lớn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe2_h2infy.jpg
+FLC Grand Hotel Hạ Long,Suite,Phòng Suite đẳng cấp 5 sao với bồn tắm sục Jacuzzi và view triệu đô.,5000000,4,2,giường đôi lớn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213202/Suite2_dwuo8m.jpg
+FLC Grand Hotel Hạ Long,Family Room,Phòng liên thông hoàn hảo cho gia đình có trẻ nhỏ và người lớn tuổi.,3800000,5,3,giường đôi và đơn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213198/Family_Room2_plc68e.webp
+Best Western Premier Sapphire Halong,Standard,Phòng tiêu chuẩn tiện nghi trang nhã view thành phố.,900000,2,1,giường đôi,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213199/Standard3_zrytbc.jpg
+Best Western Premier Sapphire Halong,Deluxe,Phòng Deluxe ban công riêng biệt ngắm bình minh trên vịnh biển.,2100000,2,1,giường đôi lớn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe3_rht7id.webp
+Best Western Premier Sapphire Halong,Suite,Căn hộ Suite tổng thống sang trọng với nội thất nhập khẩu châu Âu.,5200000,4,2,giường đôi lớn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213202/Suite3_dy2bos.webp
+Paddington Hotel Hạ Long,Standard,Phòng tiêu chuẩn ấm áp dịch vụ chu đáo giá cả hợp lý.,750000,2,1,giường đôi,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213200/Standard4_wozpkp.jpg
+Paddington Hotel Hạ Long,Deluxe,Phòng Deluxe tiện nghi hiện đại bồn tắm đứng vách kính sang trọng.,1800000,2,1,giường đôi,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe4_kqwjji.webp
+Paddington Hotel Hạ Long,Suite,Suite cao cấp có khu vực tiếp khách trà chiều thư giãn tuyệt đối.,4200000,4,2,giường đôi lớn,https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213203/Suite4_ah776w.webp

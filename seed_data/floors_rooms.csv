@@ -1,0 +1,31 @@
+hotel_name,floor_number,floor_name,room_number,room_type_name,status,notes
+Wyndham Legend Halong,1,Tầng 1,101,Standard,AVAILABLE,Phòng tiêu chuẩn gần sảnh lễ tân
+Wyndham Legend Halong,1,Tầng 1,102,Standard,BOOKED,Phòng tiêu chuẩn hướng vườn yên tĩnh
+Wyndham Legend Halong,1,Tầng 1,103,Superior,AVAILABLE,Phòng Superior 2 giường đơn thoáng đãng
+Wyndham Legend Halong,1,Tầng 1,104,Deluxe,AVAILABLE,Phòng ban công hướng biển
+Wyndham Legend Halong,1,Tầng 1,105,Deluxe,MAINTENANCE,Đang bảo trì điều hòa định kỳ
+Wyndham Legend Halong,2,Tầng 2,201,Standard,AVAILABLE,Tầng 2 view phố đi bộ
+Wyndham Legend Halong,2,Tầng 2,202,Superior,OCCUPIED,Khách đang lưu trú đoàn du lịch
+Wyndham Legend Halong,2,Tầng 2,203,Superior,AVAILABLE,Phòng sạch sẽ view thoáng mát
+Wyndham Legend Halong,2,Tầng 2,204,Deluxe,AVAILABLE,Nội thất cao cấp giường lớn
+Wyndham Legend Halong,2,Tầng 2,205,Suite,AVAILABLE,Phòng Suite VIP sang trọng
+Wyndham Legend Halong,3,Tầng 3,301,Deluxe,AVAILABLE,Tầng cao view vịnh Hạ Long
+Wyndham Legend Halong,3,Tầng 3,302,Deluxe,BOOKED,Đã có khách đặt trước tuần sau
+Wyndham Legend Halong,3,Tầng 3,303,Suite,OCCUPIED,Khách VIP công tác đang ở
+Wyndham Legend Halong,3,Tầng 3,304,Suite,AVAILABLE,Phòng tổng thống ban công rộng
+Wyndham Legend Halong,3,Tầng 3,305,Family Room,AVAILABLE,Phòng gia đình 4 người không gian mở
+FLC Grand Hotel Hạ Long,1,Tầng 1,101,Standard,AVAILABLE,Gần sảnh chính thuận tiện di chuyển
+FLC Grand Hotel Hạ Long,1,Tầng 1,102,Standard,AVAILABLE,Phòng tiêu chuẩn ấm cúng
+FLC Grand Hotel Hạ Long,1,Tầng 1,103,Superior,BOOKED,Phòng view bể bơi vô cực
+FLC Grand Hotel Hạ Long,1,Tầng 1,104,Deluxe,AVAILABLE,Ban công hướng đồi thông xanh mát
+FLC Grand Hotel Hạ Long,1,Tầng 1,105,Deluxe,AVAILABLE,Phòng đôi giường King cao cấp
+FLC Grand Hotel Hạ Long,2,Tầng 2,201,Standard,AVAILABLE,Phòng tiêu chuẩn tầng 2 yên tĩnh
+FLC Grand Hotel Hạ Long,2,Tầng 2,202,Superior,AVAILABLE,View sân golf 18 lỗ quốc tế
+FLC Grand Hotel Hạ Long,2,Tầng 2,203,Superior,OCCUPIED,Khách hội nghị quốc tế đang ở
+FLC Grand Hotel Hạ Long,2,Tầng 2,204,Deluxe,AVAILABLE,Phòng view vịnh biển tuyệt đẹp
+FLC Grand Hotel Hạ Long,2,Tầng 2,205,Suite,BOOKED,Đặt trước kỳ nghỉ trăng mật
+FLC Grand Hotel Hạ Long,3,Tầng 3,301,Deluxe,AVAILABLE,Tầm nhìn bao quát toàn bộ vịnh biển
+FLC Grand Hotel Hạ Long,3,Tầng 3,302,Deluxe,AVAILABLE,Nội thất hiện đại bồn tắm nằm
+FLC Grand Hotel Hạ Long,3,Tầng 3,303,Suite,AVAILABLE,Suite hoàng gia view 360 độ
+FLC Grand Hotel Hạ Long,3,Tầng 3,304,Suite,MAINTENANCE,Đang sơn sửa nâng cấp phòng
+FLC Grand Hotel Hạ Long,3,Tầng 3,305,Family Room,AVAILABLE,Căn hộ gia đình 5 khách tiện nghi
