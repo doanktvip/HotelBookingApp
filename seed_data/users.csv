@@ -1,0 +1,7 @@
+username,email,password,role,hotel_name,is_verified,phone
+admin,admin@hotel.com,123,ADMIN,,True,0901234567
+letan_ks1,letan1@hotel.com,123,RECEPTIONIST,Wyndham Legend Halong,True,0902345678
+letan_ks2,letan2@hotel.com,123,RECEPTIONIST,FLC Grand Hotel Hạ Long,True,0903456789
+khachhang1,khachhang1@hotel.com,123,CUSTOMER,,True,0904567890
+khachhang2,khachhang2@hotel.com,123,CUSTOMER,,True,0905678901
+khachhang3,khachhang3@hotel.com,123,CUSTOMER,,False,0906789012

@@ -41,7 +41,7 @@ class SearchService(BaseService):
         
         return None
 
-    def save_search_history(self, keyword, parsed_data, is_useful, user_id=None):
+    def save_search_history(self, keyword, parsed_data, is_useful, user_id=None, session_id=None, ip_address=None):
         # Kiểm tra xem lịch sử tìm kiếm này đã tồn tại chưa để tránh lưu trùng lặp
         existing_history = self.db.query(SearchHistory).filter(
             SearchHistory.search_query.ilike(keyword)
@@ -49,9 +49,22 @@ class SearchService(BaseService):
         
         if existing_history:
             return  # Nếu có rồi thì bỏ qua, không tạo thêm dòng mới
-            
+
+        location = parsed_data.get('location') if parsed_data else None
+        ci = parsed_data.get('check_in') if parsed_data else None
+        co = parsed_data.get('check_out') if parsed_data else None
+        capacity = parsed_data.get('capacity') if parsed_data else 1
+
         history = SearchHistory(
             user_id=user_id,
+            session_id=session_id,
+            ip_address=ip_address,
+            keyword=keyword,
+            location=location,
+            check_in_date=ci,
+            check_out_date=co,
+            guest_count=capacity or 1,
+            room_count=1,
             search_query=keyword,
             parsed_data=parsed_data,
             is_useful=is_useful
@@ -59,17 +72,75 @@ class SearchService(BaseService):
         self.db.add(history)
         self.commit_or_rollback()
 
+    def record_search(
+        self, keyword=None, location=None, check_in_str=None, check_out_str=None,
+        guest_count=1, room_count=1, user=None, session_id=None, ip_address=None
+    ):
+        keyword = (keyword or '').strip() or None
+        location = (location or '').strip() or None
+        if not keyword and not location and not check_in_str and not check_out_str:
+            return None
+
+        ci_date, co_date = None, None
+        if check_in_str:
+            try:
+                ci_date = datetime.strptime(check_in_str, '%Y-%m-%d').date()
+            except Exception:
+                pass
+        if check_out_str:
+            try:
+                co_date = datetime.strptime(check_out_str, '%Y-%m-%d').date()
+            except Exception:
+                pass
+
+        user_id = user.id if user and getattr(user, 'is_authenticated', False) else None
+
+        # Tránh ghi nhận trùng lặp nếu người dùng refresh liên tục trong 30 giây
+        from datetime import timedelta
+        recent_threshold = get_vn_time() - timedelta(seconds=30)
+        query = self.db.query(SearchHistory).filter(
+            SearchHistory.created_at >= recent_threshold,
+            SearchHistory.keyword == keyword,
+            SearchHistory.location == location
+        )
+        if user_id:
+            query = query.filter(SearchHistory.user_id == user_id)
+        else:
+            query = query.filter(
+                (SearchHistory.session_id == session_id) | (SearchHistory.ip_address == ip_address)
+            )
+
+        if query.first():
+            return None
+
+        history = SearchHistory(
+            user_id=user_id,
+            session_id=session_id if not user_id else None,
+            ip_address=ip_address if not user_id else None,
+            keyword=keyword,
+            location=location,
+            check_in_date=ci_date,
+            check_out_date=co_date,
+            guest_count=guest_count or 1,
+            room_count=room_count or 1,
+            search_query=keyword or location,
+            is_useful=True
+        )
+        self.db.add(history)
+        self.commit_or_rollback()
+        return history
+
 
     def search_booking_in_recept(self, hotel_id, search_keyword='', status='ALL', check_in_date='', page=1, per_page=10):
         booking_query = self.db.query(Booking).join(User, Booking.user_id == User.id).filter(Booking.hotel_id == hotel_id)
         search_keyword = (search_keyword or '').strip()
         if search_keyword:
-            search_id_str = search_keyword.upper().replace('BK-', '').strip()
-            if search_id_str.isdigit():
+            clean_id_str = search_keyword.upper().replace('BK-', '').replace('BK', '').strip()
+            if clean_id_str.isdigit():
                 # Tìm theo ID HOẶC Tên HOẶC SĐT
                 booking_query = booking_query.filter(
                     or_(
-                        Booking.id == int(search_id_str),
+                        Booking.id == int(clean_id_str),
                         User.username.ilike(f'%{search_keyword}%'),
                         User.phone.ilike(f'%{search_keyword}%')
                     )
@@ -84,12 +155,26 @@ class SearchService(BaseService):
                 )
 
         if status and status != 'ALL':
-            from app.models import BookingStatus
-            try:
-                enum_status = BookingStatus[status]
-                booking_query = booking_query.filter(Booking.status == enum_status)
-            except KeyError:
-                pass
+            from app.models import BookingStatus, RoomStatus, BookingDetail, Room
+            if status in ('CHECKED_IN', 'OCCUPIED'):
+                # Đang sử dụng: những đơn có phòng mang trạng thái OCCUPIED
+                booking_query = booking_query.join(Booking.booking_details).join(BookingDetail.room).filter(
+                    Room.status == RoomStatus.OCCUPIED
+                )
+            elif status == 'CONFIRMED':
+                occupied_subquery = self.db.query(BookingDetail.booking_id).join(Room).filter(
+                    Room.status == RoomStatus.OCCUPIED
+                )
+                booking_query = booking_query.filter(
+                    Booking.status == BookingStatus.CONFIRMED,
+                    Booking.id.notin_(occupied_subquery)
+                )
+            else:
+                try:
+                    enum_status = BookingStatus[status]
+                    booking_query = booking_query.filter(Booking.status == enum_status)
+                except KeyError:
+                    pass
 
         if check_in_date:
             if check_in_date.lower() == 'today':
@@ -97,8 +182,14 @@ class SearchService(BaseService):
             else:
                 date_obj = datetime.strptime(check_in_date, '%Y-%m-%d').date()
             booking_query = booking_query.filter(Booking.check_in == date_obj)
-        # Sắp xếp và phân trang
-        booking_query = booking_query.order_by(Booking.check_in.desc())
+
+        # Sắp xếp ưu tiên cho các đơn có check-in hoặc check-out là HÔM NAY
+        today = get_vn_time().date()
+        is_today_priority = case(
+            (or_(Booking.check_in == today, Booking.check_out == today), 0),
+            else_=1
+        )
+        booking_query = booking_query.order_by(is_today_priority.asc(), Booking.id.asc())
         bookings_pagination = db.paginate(booking_query.statement, page=page, per_page=per_page, error_out=False)
 
         # Tính toán trạng thái "Đang ở"

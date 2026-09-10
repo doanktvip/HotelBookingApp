@@ -148,6 +148,22 @@ class RoomType(db.Model):
             room.is_active = False
 
 
+class Floor(db.Model):
+    """Quản lý danh sách các tầng trong khách sạn"""
+
+    __tablename__ = 'floors'
+
+    id = Column(Integer, primary_key=True)  # ID tầng
+    hotel_id = Column(Integer, ForeignKey('hotels.id'), nullable=False)  # Thuộc khách sạn nào
+    floor_number = Column(Integer, nullable=False)  # Số tầng (1, 2, 3...)
+    name = Column(String(50), nullable=True)  # Tên tầng (Ví dụ: "Tầng 1", "Tầng Thượng")
+    description = Column(String(255), nullable=True)  # Ghi chú / mô tả về tầng
+
+    # Các mối quan hệ
+    hotel = db.relationship('Hotel', backref=db.backref('floors', lazy=True, cascade='all, delete-orphan'))
+    rooms = db.relationship('Room', backref='floor_obj', lazy=True)
+
+
 class Room(db.Model):
     """Quản lý căn phòng vật lý cụ thể (Ví dụ: Phòng 101, Phòng 102)"""
 
@@ -155,8 +171,9 @@ class Room(db.Model):
 
     id = Column(Integer, primary_key=True)  # ID phòng vật lý
     room_type_id = Column(Integer, ForeignKey('room_types.id'), nullable=False)  # Thuộc loại phòng nào
+    floor_id = Column(Integer, ForeignKey('floors.id'), nullable=True)  # Khóa ngoại liên kết tới bảng Floor
     room_number = Column(String(50), nullable=False)  # Mã/Số phòng thực tế dán trên cửa
-    floor = Column(Integer, nullable=True)  # Tầng của phòng (hỗ trợ lọc/xếp phòng)
+    floor = Column(Integer, nullable=True)  # Tầng của phòng (giữ nguyên số nguyên 1, 2, 3 để tương thích ngược)
     is_active = Column(Boolean, default=True, index=True)  # Hỗ trợ "Xóa mềm" (Soft Delete)
     notes = Column(Text, nullable=True)  # Ghi chú riêng cho căn phòng đó
     status = Column(Enum(RoomStatus, name='room_statuses'), default=RoomStatus.AVAILABLE, nullable=False, index=True)
@@ -282,16 +299,52 @@ class PricePrediction(db.Model):
 
 
 class SearchHistory(db.Model):
-    """Lịch sử tìm kiếm của người dùng - Phục vụ Yêu cầu NLP & Gợi ý thông minh (Tính năng nâng cao)"""
+    """Lịch sử tìm kiếm của người dùng - Lưu vết tìm kiếm & Phục vụ Gợi ý thông minh"""
 
     __tablename__ = 'search_histories'
 
     id = Column(Integer, primary_key=True)  # ID dòng lịch sử
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # Khách hàng nào tìm (Nếu chưa đăng nhập thì null)
+    session_id = Column(String(100), nullable=True)  # Mã phiên cho khách vãng lai
+    ip_address = Column(String(50), nullable=True)  # Địa chỉ IP của khách
+    keyword = Column(String(255), nullable=True)  # Tên khách sạn hoặc từ khóa tìm kiếm
+    location = Column(String(100), nullable=True)  # Địa điểm / thành phố tìm kiếm
+    check_in_date = Column(Date, nullable=True)  # Ngày nhận phòng dự kiến
+    check_out_date = Column(Date, nullable=True)  # Ngày trả phòng dự kiến
+    guest_count = Column(Integer, nullable=True, default=1)  # Số lượng khách
+    room_count = Column(Integer, nullable=True, default=1)  # Số lượng phòng
+    created_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời điểm tìm kiếm
+
+    # Các trường mở rộng hỗ trợ AI / NLP & Recommendation
     search_query = Column(Text, nullable=True)  # Câu truy vấn tự nhiên
-    parsed_data = Column(db.JSON, nullable=True) # Dữ liệu đã parse từ câu truy vấn
-    is_useful = Column(Boolean, default=False) # Đánh dấu tìm kiếm này có ích để dùng cho Recommendation không
-    searched_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời điểm tìm kiếm
+    parsed_data = Column(db.JSON, nullable=True)  # Dữ liệu đã parse từ câu truy vấn
+    is_useful = Column(Boolean, default=False)  # Đánh dấu tìm kiếm này có ích để dùng cho Recommendation
+    searched_at = Column(DateTime, default=get_vn_time, nullable=False)  # Thời điểm tìm kiếm (tương thích)
+
+    def __init__(self, **kwargs):
+        # Tự động đồng bộ giữa keyword và search_query, created_at và searched_at
+        if 'keyword' in kwargs and 'search_query' not in kwargs:
+            kwargs['search_query'] = kwargs['keyword']
+        elif 'search_query' in kwargs and 'keyword' not in kwargs:
+            kwargs['keyword'] = kwargs['search_query']
+        if 'created_at' in kwargs and 'searched_at' not in kwargs:
+            kwargs['searched_at'] = kwargs['created_at']
+        elif 'searched_at' in kwargs and 'created_at' not in kwargs:
+            kwargs['created_at'] = kwargs['searched_at']
+        super().__init__(**kwargs)
+
+    @property
+    def display_text(self):
+        """Hiển thị tóm tắt nội dung tìm kiếm"""
+        if self.keyword and self.location and self.keyword != self.location:
+            return f"{self.keyword} ({self.location})"
+        if self.keyword:
+            return self.keyword
+        if self.location:
+            return self.location
+        if self.search_query:
+            return self.search_query
+        return "Tất cả khách sạn"
 
 class PriceHistory(db.Model):
     """Bảng lưu vết lịch sử thay đổi giá (Audit Log cho Admin)"""

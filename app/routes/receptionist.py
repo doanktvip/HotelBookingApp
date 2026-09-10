@@ -10,11 +10,16 @@ from app.extensions import db
 receptionist_bp = Blueprint('receptionist', __name__)
 
 @receptionist_bp.route('/recept', methods=['GET'])
+@receptionist_bp.route('/reception/bookings', methods=['GET'])
+@receptionist_bp.route('/admin/bookings', methods=['GET'])
 @login_required
 def recept():
-    if current_user.role != UserRole.RECEPTIONIST:
+    if current_user.role not in (UserRole.RECEPTIONIST, UserRole.ADMIN):
         abort(403)
     hotel_id = current_user.hotel_id
+    if not hotel_id:
+        first_hotel = Hotel.query.first()
+        hotel_id = first_hotel.id if first_hotel else None
     today = get_vn_time().date()
 
     checkout_service = CheckoutService(db.session)
@@ -69,16 +74,60 @@ def recept():
     return render_template('room_management.html',rooms_by_floor=rooms_by_floor,status_counts=status_counts,floors=floors,bookings=bookings_pagination,today=today,BookingStatus=BookingStatus,current_status=status,current_date=check_in_date)
 
 
+@receptionist_bp.route('/api/checkout-details/<int:booking_id>', methods=['GET'])
+@login_required
+def get_checkout_details(booking_id):
+    if current_user.role not in (UserRole.RECEPTIONIST, UserRole.ADMIN):
+        abort(403)
+        
+    booking = db.get_or_404(Booking, booking_id)
+    if current_user.hotel_id and booking.hotel_id != current_user.hotel_id:
+        abort(403)
+        
+    room_price = float(booking.total_price)
+    late_fee = 0.0
+    
+    today = get_vn_time().date()
+    current_time = get_vn_time().time()
+    from datetime import time
+    from app.models import PaymentStatus
+    checkout_time_limit = time(12, 0)
+    
+    if today > booking.check_out or (today == booking.check_out and current_time > checkout_time_limit):
+        late_fee = room_price * 0.1
+        
+    total = room_price + late_fee
+    
+    paid = 0.0
+    if booking.payment and booking.payment.status == PaymentStatus.SUCCESS:
+        paid = float(booking.payment.amount)
+        
+    balance = max(0.0, total - paid)
+    
+    from flask import jsonify
+    return jsonify({
+        'room_price': room_price,
+        'late_fee': late_fee,
+        'total': total,
+        'paid': paid,
+        'balance': balance
+    })
+
+
 @receptionist_bp.route('/update_booking_status/<int:booking_id>', methods=['POST'])
 @login_required
 def update_booking_status(booking_id):
-    if current_user.role != UserRole.RECEPTIONIST:
+    if current_user.role not in (UserRole.RECEPTIONIST, UserRole.ADMIN):
         abort(403)
 
     action = request.form.get('action')
     checkout_service = CheckoutService(db.session)
     try:
-        checkout_service.update_status_at_counter(booking_id,current_user.hotel_id,action)
+        hotel_id = current_user.hotel_id
+        if not hotel_id:
+            booking = db.session.get(Booking, booking_id)
+            hotel_id = booking.hotel_id if booking else None
+        checkout_service.update_status_at_counter(booking_id, hotel_id, action)
         if action == "checkin":
             flash("Check-in thành công.", "success")
         elif action == "checkout":

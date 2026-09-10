@@ -1,15 +1,26 @@
 import os
-import random
+import csv
+import sys
 import copy
+import random
+import hashlib
+from pathlib import Path
+from datetime import datetime, timedelta
+
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from app import create_app
 from app.extensions import db
 from app.models import (
-    Hotel, RoomType, Room, User, UserRole, RoomStatus, Tag,
+    Hotel, RoomType, Floor, Room, User, UserRole, RoomStatus, Tag,
     Booking, BookingDetail, Payment, BookingStatus, PaymentMethod, PaymentStatus,
     SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory, RefundLog
 )
-from datetime import datetime, timedelta
-import hashlib
+
+SEED_DATA_DIR = Path(__file__).parent / 'seed_data'
 
 TAGS_DATA = [
     {'name': 'Wifi', 'icon': 'bi-wifi'},
@@ -30,525 +41,608 @@ TAGS_DATA = [
     {'name': 'Sân chơi trẻ em', 'icon': 'bi-balloon'},
     {'name': 'Khu vực hút thuốc', 'icon': 'bi-sign-stop'}
 ]
-HOTELS_DATA = [
-    {
-        'name': 'The Reverie Saigon',
-        'address': '22-36 Nguyễn Huệ, Quận 1',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Khách sạn 5 sao mang phong cách hoàng gia Ý tráng lệ, tọa lạc ngay phố đi bộ Nguyễn Huệ với tầm nhìn tuyệt đẹp ra sông Sài Gòn. Nơi hội tụ các nhà hàng ẩm thực cao cấp và không gian xa hoa bậc nhất.',
-        'rating': 4.9,
-        'cancellation_policy_days': 7,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210595/The_Reverie_Saigon_qah7dr.avif',
-    },
-    {
-        'name': 'Vinpearl Landmark 81, Autograph Collection',
-        'address': '720A Điện Biên Phủ, Phường 22, Quận Bình Thạnh',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Tọa lạc trên đỉnh tòa tháp cao nhất Việt Nam, khách sạn mang đến trải nghiệm lưu trú giữa những tầng mây. Hồ bơi vô cực ngoài trời, dịch vụ spa chuẩn quốc tế và tầm nhìn panorama bao trọn thành phố.',
-        'rating': 4.8,
-        'cancellation_policy_days': 7,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210171/Vinpearl_Landmark_81_Autograph_Collection_rfpu0e.jpg',
-    },
-    {
-        'name': 'Caravelle Saigon',
-        'address': '19-23 Công trường Lam Sơn, Quận 1',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Khách sạn biểu tượng mang đậm dấu ấn lịch sử nằm ngay kế bên Nhà hát Lớn Thành phố. Nổi tiếng với quán bar Saigon Saigon Rooftop và dịch vụ đẳng cấp thế giới.',
-        'rating': 4.7,
-        'cancellation_policy_days': 3,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210167/Caravelle_Saigon_v7qmdy.jpg',
-    },
-    {
-        'name': 'Liberty Central Saigon Citypoint',
-        'address': '59 Pasteur, Phường Bến Nghé, Quận 1',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Khách sạn 4 sao hiện đại nổi bật với rạp chiếu phim nội khu đầu tiên và duy nhất tại Sài Gòn. Hồ bơi sân thượng và quầy bar lý tưởng để thư giãn.',
-        'rating': 4.5,
-        'cancellation_policy_days': 7,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210594/Liberty_Central_Saigon_Citypoint_o0d8bk.webp',
-    },
-    {
-        'name': 'La Vela Saigon Hotel',
-        'address': '280 Nam Kỳ Khởi Nghĩa, Phường 8, Quận 3',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Sở hữu hồ bơi vô cực trên tầng thượng lớn nhất thành phố. Thiết kế sang trọng, tầm nhìn cực đẹp và ẩm thực đa dạng từ Á sang Âu.',
-        'rating': 4.6,
-        'cancellation_policy_days': 5,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210166/La_Vela_Saigon_Hotel_edwakw.jpg',
-    },
-    {
-        'name': 'Ibis Saigon Airport',
-        'address': '2 Hồng Hà, Phường 2, Tân Bình',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Chỉ cách sân bay Tân Sơn Nhất 5 phút đi bộ. Dịch vụ lưu trú thuận tiện, hiện đại, tích hợp The Hub bar và hồ bơi tầng thượng thư giãn.',
-        'rating': 4.3,
-        'cancellation_policy_days': 1,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210594/Ibis_Saigon_Airport_tvbftn.webp',
-    },
-    {
-        'name': 'Hotel Des Arts Saigon, MGallery',
-        'address': '76-78 Nguyễn Thị Minh Khai, Quận 3',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Một tác phẩm nghệ thuật kiến trúc kết hợp giữa nét lãng mạn của Pháp và vẻ đẹp đương đại Á Đông. Tự hào với bể bơi vô cực và Social Club độc đáo.',
-        'rating': 4.8,
-        'cancellation_policy_days': 7,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210166/Hotel_Des_Arts_Saigon_MGallery_tdvivl.jpg',
-    },
-    {
-        'name': 'New World Saigon Hotel',
-        'address': '76 Lê Lai, Phường Bến Thành, Quận 1',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Tọa lạc đối diện công viên 23/9 trong lành, kế bên chợ Bến Thành nhộn nhịp. Một điểm dừng chân hoàn hảo cho cả công tác và nghỉ dưỡng.',
-        'rating': 4.6,
-        'cancellation_policy_days': 7,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210595/New_World_Saigon_Hotel_btv6pa.jpg',
-    },
-    {
-        'name': 'Bay Hotel Ho Chi Minh',
-        'address': '7 Ngô Văn Năm, Phường Bến Nghé, Quận 1',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Khách sạn phong cách boutique hiện đại nằm khuất trong con đường rợp bóng cây ngay trung tâm Sài Gòn, dễ dàng tản bộ ra bến Bạch Đằng.',
-        'rating': 4.2,
-        'cancellation_policy_days': 3,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210594/Bay_Hotel_Ho_Chi_Minh_tpawal.jpg',
-    },
-    {
-        'name': 'Muong Thanh Luxury Saigon Hotel',
-        'address': '261C Nguyễn Văn Trỗi, Phường 10, Phú Nhuận',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Với phong cách trang trọng và mến khách mang đậm văn hóa Việt Nam. Điểm dừng chân lý tưởng trên trục đường nối sân bay và trung tâm.',
-        'rating': 4.4,
-        'cancellation_policy_days': 7,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210170/Muong_Thanh_Luxury_Saigon_Hotel_opbhtp.jpg',
-    },
-    {
-        'name': 'Silverland Yen Hotel',
-        'address': '73-75 Thủ Khoa Huân, Phường Bến Thành, Quận 1',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Một chốn bình yên tĩnh lặng mang hơi thở của thiền định giữa lòng Sài Gòn ồn ào náo nhiệt. Trà chiều miễn phí và Jacuzzi trên sân thượng.',
-        'rating': 4.7,
-        'cancellation_policy_days': 3,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210169/Silverland_Yen_Hotel_wuihya.jpg',
-    },
-    {
-        'name': 'Pullman Saigon Centre',
-        'address': '148 Trần Hưng Đạo, Phường Nguyễn Cư Trinh, Quận 1',
-        'location': 'Thành phố Hồ Chí Minh',
-        'description': 'Sở hữu không gian sống hiện đại, view cực đỉnh nhìn toàn cảnh Sài Gòn. Nổi tiếng với ẩm thực thịt nướng cao cấp và Rooftop bar sôi động.',
-        'rating': 4.6,
-        'cancellation_policy_days': 7,
-        'image_url': 'https://res.cloudinary.com/db4bjqp4f/image/upload/v1785210170/Pullman_Saigon_Centre_kekfqc.jpg',
-    }
-]
 
-ROOM_TYPES_DATA = [
-    {
-        "name": "Standard",
-        "desc": "Phòng tiêu chuẩn, mức giá cơ bản nhất với các tiện nghi thiết yếu.",
-        "price": 800000.0,
-    },
-    {
-        "name": "Superior",
-        "desc": "Phòng chất lượng cao hơn, không gian rộng rãi và thoải mái hơn so với phòng Standard.",
-        "price": 1200000.0,
-    },
-    {
-        "name": "Deluxe",
-        "desc": "Phòng sang trọng, thường nằm ở các tầng cao với tầm nhìn đẹp và nội thất cao cấp.",
-        "price": 2000000.0,
-    },
-    {
-        "name": "Suite",
-        "desc": "Phòng thượng hạng, diện tích rất lớn, thường được thiết kế với khu vực phòng khách và phòng ngủ hoàn toàn riêng biệt.",
-        "price": 5500000.0,
-    },
-    {
-        "name": "Family Room",
-        "desc": "Phòng dành cho gia đình, không gian rộng và được bố trí nhiều giường (giường đôi, giường đơn hoặc giường tầng) để phù hợp cho nhóm đông người.",
-        "price": 3500000.0,
-    }
+DEFAULT_ROOM_TYPES_FALLBACK = [
+    {"name": "Standard", "desc": "Phòng tiêu chuẩn tiện nghi cơ bản.", "price": 800000.0, "bed_type": "giường đôi", "bed_count": 1, "max_occ": 2},
+    {"name": "Superior", "desc": "Phòng chất lượng cao không gian rộng rãi.", "price": 1200000.0, "bed_type": "giường đơn", "bed_count": 2, "max_occ": 2},
+    {"name": "Deluxe", "desc": "Phòng sang trọng tầng cao nội thất cao cấp.", "price": 2000000.0, "bed_type": "giường đôi lớn", "bed_count": 1, "max_occ": 2},
+    {"name": "Suite", "desc": "Phòng thượng hạng có khu tiếp khách riêng.", "price": 4500000.0, "bed_type": "giường đôi lớn", "bed_count": 2, "max_occ": 4},
+    {"name": "Family Room", "desc": "Phòng gia đình rộng rãi cho đoàn khách.", "price": 3500000.0, "bed_type": "giường đôi và đơn", "bed_count": 3, "max_occ": 5}
 ]
 
 ROOM_TYPE_IMAGES = {
     "Standard": [
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213202/Standard7_rny3ae.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213201/Standard6_un7hj1.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213200/Standard5_rkey00.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213200/Standard4_wozpkp.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213199/Standard3_zrytbc.jpg",
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213198/Standard1_afqhsk.webp",
         "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213199/Standard2_wu01wl.webp",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213198/Standard1_afqhsk.webp"
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213199/Standard3_zrytbc.jpg",
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213200/Standard4_wozpkp.jpg"
     ],
     "Superior": [
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213206/Superior6_v8bxty.webp",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213205/Superior5_eicsvr.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213205/Superior4_yy2j8g.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213204/Superior3_wgrh9q.jpg",
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213203/Superior1_hpfpfj.jpg",
         "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213204/Superior2_bkojp9.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213203/Superior1_hpfpfj.jpg"
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213204/Superior3_wgrh9q.jpg"
     ],
     "Deluxe": [
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe5_z6ug8k.webp",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe4_kqwjji.webp",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe3_rht7id.webp",
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe1_etbfsb.webp",
         "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe2_h2infy.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe1_etbfsb.webp"
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Deluxe3_rht7id.webp"
     ],
     "Suite": [
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213203/Suite4_ah776w.webp",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213202/Suite3_dy2bos.webp",
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213201/Suite1_xoxnnx.webp",
         "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213202/Suite2_dwuo8m.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213201/Suite1_xoxnnx.webp"
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213202/Suite3_dy2bos.webp"
     ],
     "Family Room": [
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213294/Family_Room3_taeubz.jpg",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213198/Family_Room2_plc68e.webp",
-        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Family_Room1_udwamd.webp"
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213197/Family_Room1_udwamd.webp",
+        "https://res.cloudinary.com/db4bjqp4f/image/upload/v1785213198/Family_Room2_plc68e.webp"
     ]
 }
 
-PASSWORD='123'
 
-USERS_DATA = [
-    {
-        "username": "admin",
-        "email": "admin@hotel.com",
-        "password": PASSWORD,
-        "role": UserRole.ADMIN,
-        "is_verified": True,
-    }
-]
+def hash_password(password_str):
+    return str(hashlib.md5(password_str.strip().encode('utf-8')).hexdigest())
 
-# Tạo 30 tài khoản khách hàng
-for i in range(1, 31):
-    USERS_DATA.append({
-        "username": f"khachhang{i}",
-        "email": f"khachhang{i}@hotel.com",
-        "password": PASSWORD,
-        "role": UserRole.CUSTOMER,
-        "is_verified": False if i == 1 else True,  # Khách hàng đầu tiên (khachhang1) sẽ có is_verified = False
-    })
 
-def seed_users():
-    print("Đang tạo Users...")
-    for u_data in USERS_DATA:
-        user = User(
-            username=u_data["username"],
-            email=u_data["email"],
-            password=str(hashlib.md5(u_data["password"].strip().encode('utf-8')).hexdigest()),
-            role=u_data["role"],
-            is_verified=u_data["is_verified"],
-        )
-        db.session.add(user)
+def safe_seed_tags():
+    print("[1/7] Đang nạp danh mục Tiện ích (Tags)...")
+    added, updated = 0, 0
+    tag_map = {}
+    for t_data in TAGS_DATA:
+        tag = db.session.query(Tag).filter_by(name=t_data['name']).first()
+        if not tag:
+            tag = Tag(name=t_data['name'], icon=t_data['icon'])
+            db.session.add(tag)
+            added += 1
+        else:
+            if not tag.icon and t_data.get('icon'):
+                tag.icon = t_data['icon']
+                updated += 1
+        tag_map[t_data['name']] = tag
     db.session.commit()
+    print(f"  -> Hoàn thành Tags: Thêm mới {added}, Cập nhật {updated}.")
+    return list(tag_map.values())
 
-def get_or_create_tag(tag_data):
-    tag = db.session.query(Tag).filter_by(name=tag_data['name']).first()
-    if not tag:
-        tag = Tag(name=tag_data['name'], icon=tag_data['icon'])
-        db.session.add(tag)
-        db.session.commit()
-    elif not tag.icon: # Cập nhật icon nếu tag đã có sẵn nhưng chưa có icon
-        tag.icon = tag_data['icon']
-        db.session.commit()
-    return tag
 
-def seed_hotels_and_tags():
-    print("Đang tạo Khách sạn và gán Tags...")
-    created_hotels = []
+def safe_seed_hotels(all_tags):
+    print("[2/7] Đang nạp danh sách Khách sạn từ seed_data/hotels.csv...")
+    csv_path = SEED_DATA_DIR / 'hotels.csv'
+    if not csv_path.exists():
+        print(f"  [!] Không tìm thấy tệp {csv_path}")
+        return []
 
-    for h_data in HOTELS_DATA:
-        hotel_dict = copy.deepcopy(h_data)
-        hotel = Hotel(**hotel_dict)
-        db.session.add(hotel)
-
-        # Vì bạn đã xóa amenities cứng của từng khách sạn,
-        # mình sẽ cho script tự bốc ngẫu nhiên 5-7 tag từ TAGS_DATA gán cho mỗi khách sạn luôn cho tiện.
-        num_tags = random.randint(5, 7)
-        selected_tags = random.sample(TAGS_DATA, k=num_tags)
-        for t_data in selected_tags:
-            tag = get_or_create_tag(t_data)
-            hotel.tags.append(tag)
-            
-        created_hotels.append(hotel)
-        
-    db.session.commit()
-    return created_hotels
-
-def seed_rooms(created_hotels):
-    print("Đang tạo Loại phòng (lấy theo cấp bậc) và Căn phòng vật lý...")
-    for hotel in created_hotels:
-        # Lấy từ 2 đến 5 loại phòng, LẤY THEO BẬC TỪ THẤP ĐẾN CAO
-        num_rt = random.randint(2, 5)
-        selected_rts = ROOM_TYPES_DATA[:num_rt]
-        
-        created_room_types = []
-        for rt in selected_rts:
-            # Randomize price (dao động +- 20% so với giá gốc, làm tròn đến 50k)
-            base_price = rt["price"]
-            variation = random.uniform(0.8, 1.2)
-            final_price = round((base_price * variation) / 50000) * 50000
-            
-            # Chọn ngẫu nhiên 1 ảnh từ thư viện ảnh theo đúng tên loại phòng
-            rt_name = rt["name"]
-            
-            # Khắc phục lỗi KeyError do thư viện ảnh cần mặc định
-            images_list = ROOM_TYPE_IMAGES[rt_name]
-            final_image = random.choice(images_list)
-            
-            # Random bed_type và bed_count (1 hoặc 2)
-            final_bed_type = random.choice(["giường đôi", "giường đơn"])
-            final_bed_count = random.choice([1, 2])
-            
-            # Tính max_occupancy dựa trên bed_count và bed_type
-            if final_bed_type == "giường đôi":
-                final_max_occupancy = final_bed_count * 2
-            else:
-                final_max_occupancy = final_bed_count * 1
-            
-            room_type = RoomType(
-                hotel_id=hotel.id,
-                name=rt["name"],
-                description=rt["desc"],
-                base_price=final_price,
-                max_occupancy=final_max_occupancy,
-                bed_count=final_bed_count,
-                bed_type=final_bed_type,
-                image_url=final_image,
-            )
-            db.session.add(room_type)
-            created_room_types.append(room_type)
-        db.session.commit()
-
-        # Tạo phòng vật lý: mỗi RoomType có 3-5 phòng
-        # Phải đảm bảo tầng nào (1, 2, 3) cũng có ít nhất 1 phòng trong khách sạn
-        floor_counters = {1: 1, 2: 1, 3: 1}
-        
-        rooms_to_create = []
-        for rt in created_room_types:
-            num_rooms = random.randint(3, 5)
-            rooms_to_create.extend([rt.id] * num_rooms)
-            
-        random.shuffle(rooms_to_create) # Trộn ngẫu nhiên để công bằng
-        
-        # Phân bổ phòng cho 3 tầng sao cho: Tầng 1 >= Tầng 2 >= Tầng 3 >= 1
-        total_rooms = len(rooms_to_create)
-        valid_partitions = []
-        for i in range(1, total_rooms - 1):
-            for j in range(1, total_rooms - i):
-                k = total_rooms - i - j
-                if i >= j >= k >= 1:
-                    valid_partitions.append((i, j, k))
-                    
-        # Bốc ngẫu nhiên 1 cách chia thỏa mãn điều kiện
-        c1, c2, c3 = random.choice(valid_partitions)
-        # Danh sách các tầng tương ứng cho từng phòng
-        floor_assignments = [1]*c1 + [2]*c2 + [3]*c3
-        
-        floor_counters = {1: 1, 2: 1, 3: 1}
-        
-        # Gắn từng phòng vào tầng đã được chia
-        for rt_id, floor_num in zip(rooms_to_create, floor_assignments):
-            room_number = f"{floor_num}{floor_counters[floor_num]:02d}"
-            floor_counters[floor_num] += 1
-            
-            room = Room(
-                room_type_id=rt_id,
-                room_number=room_number,
-                floor=floor_num,
-                is_active=True,
-                notes=None,
-                status=RoomStatus.AVAILABLE,
-            )
-            db.session.add(room)
-    db.session.commit()
-
-def seed_receptionists(created_hotels):
-    print("Đang tạo 12 Lễ tân cho 12 khách sạn...")
-    for i, hotel in enumerate(created_hotels):
-        receptionist = User(
-            username=f"letan{i+1}",
-            email=f"letan{i+1}@hotel.com",
-            password=str(hashlib.md5(PASSWORD.strip().encode('utf-8')).hexdigest()),
-            role=UserRole.RECEPTIONIST,
-            is_verified=True,
-            hotel_id=hotel.id
-        )
-        db.session.add(receptionist)
-    db.session.commit()
-
-def seed_bookings_and_payments(created_hotels):
-    print("Đang tạo Bookings và Payments với đa dạng trạng thái...")
-    customers = User.query.filter_by(role=UserRole.CUSTOMER).all()
-    
-    for customer in customers:
-        num_bookings_to_create = 15 if customer.username == 'khachhang1' else 1
-        
-        for _ in range(num_bookings_to_create):
-            hotel = random.choice(created_hotels)
-            # Lấy một loại phòng ngẫu nhiên của khách sạn này
-            available_room_types = RoomType.query.filter_by(hotel_id=hotel.id).all()
-            if not available_room_types:
+    added, updated = 0, 0
+    hotels = []
+    with open(csv_path, encoding='utf-8-sig', newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            name = (row.get('name') or '').strip()
+            if not name:
                 continue
-            selected_room_type = random.choice(available_room_types)
-            
-            # Lấy phòng trống của loại phòng đã chọn
-            available_rooms = Room.query.filter_by(status=RoomStatus.AVAILABLE, room_type_id=selected_room_type.id).all()
-            if not available_rooms:
-                continue
-                
-            num_rooms = random.randint(1, min(2, len(available_rooms)))
-            selected_rooms = random.sample(available_rooms, num_rooms)
-            
-            b_status = random.choice([BookingStatus.CONFIRMED, BookingStatus.CANCELLED, BookingStatus.COMPLETED])
-            
-            if b_status == BookingStatus.COMPLETED:
-                check_in_date = datetime.now().date() - timedelta(days=random.randint(3, 10))
-                p_status = PaymentStatus.SUCCESS
-                r_status = RoomStatus.AVAILABLE 
-            elif b_status == BookingStatus.CANCELLED:
-                check_in_date = datetime.now().date() + timedelta(days=random.randint(1, 10))
-                p_status = random.choice([PaymentStatus.FAILED, PaymentStatus.PENDING])
-                r_status = RoomStatus.AVAILABLE 
-            else: # CONFIRMED
-                check_in_date = datetime.now().date() + timedelta(days=random.randint(1, 10))
-                p_status = PaymentStatus.SUCCESS
-                r_status = random.choice([RoomStatus.BOOKED, RoomStatus.OCCUPIED])
-            
-            check_out_date = check_in_date + timedelta(days=random.randint(1, 3))
-            num_days = (check_out_date - check_in_date).days
-            
-            booking = Booking(
-                user_id=customer.id,
-                hotel_id=hotel.id,
-                room_type_id=selected_room_type.id,
-                check_in=check_in_date,
-                check_out=check_out_date,
-                status=b_status,
-                total_price=0 
-            )
-            db.session.add(booking)
-            db.session.flush() 
-            
-            total_price = 0
-            for room in selected_rooms:
-                room.status = r_status 
-                price = room.room_type.base_price
-                total_price += price * num_days
-                
-                detail = BookingDetail(
-                    booking_id=booking.id,
-                    room_id=room.id,
-                    price_at_booking=price
+
+            rating = float(row.get('rating') or 0.0)
+            days = int(row.get('cancellation_policy_days') or 7)
+            address = (row.get('address') or '').strip()
+            location = (row.get('location') or '').strip()
+            description = (row.get('description') or '').strip()
+            image_url = (row.get('image_url') or '').strip() or None
+
+            hotel = db.session.query(Hotel).filter_by(name=name).first()
+            if not hotel:
+                hotel = Hotel(
+                    name=name,
+                    address=address,
+                    location=location,
+                    description=description,
+                    rating=rating,
+                    cancellation_policy_days=days,
+                    image_url=image_url
                 )
-                db.session.add(detail)
-                
-            booking.total_price = total_price
-            
-            payment = Payment(
-                booking_id=booking.id,
-                payment_method=PaymentMethod.MOMO,
-                amount=total_price,
-                status=p_status
-            )
-            if p_status == PaymentStatus.SUCCESS:
-                payment.payment_date = datetime.now()
-                payment.transaction_id = f"MOMO_TRANS_{random.randint(100000, 999999)}"
-            db.session.add(payment)
-        
-    # Tạo thêm dữ liệu ảo cho RefundLog
-    print("Đang tạo RefundLogs ảo...")
-    for i in range(3):
-        refund = RefundLog(
-            order_id=f"MOMO_{int(datetime.now().timestamp() * 1000) + i}",
-            trans_id=f"MOMO_TRANS_{random.randint(100000, 999999)}",
-            amount=random.choice([500000, 1000000, 1500000]),
-            reason="Lỗi Overbooking: Hết phòng khi đang thanh toán"
-        )
-        db.session.add(refund)
-        
-    db.session.commit()
+                db.session.add(hotel)
+                added += 1
+            else:
+                hotel.address = address
+                hotel.location = location
+                hotel.description = description
+                hotel.rating = rating
+                hotel.cancellation_policy_days = days
+                if image_url:
+                    hotel.image_url = image_url
+                updated += 1
 
-def seed_other_tables(created_hotels):
-    print("Đang tạo dữ liệu cho SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory...")
-    
-    # 1. SystemConfig
-    configs = [
-        SystemConfig(config_key='MAX_ROOMS_PER_BOOKING', config_value='5', description='Số phòng tối đa được đặt trong 1 đơn'),
-        SystemConfig(config_key='CANCELLATION_FEE_PERCENTAGE', config_value='10', description='Phần trăm phí phạt nếu hủy phòng sát ngày'),
-        SystemConfig(config_key='MAINTENANCE_MODE', config_value='false', description='Bật/tắt chế độ bảo trì toàn hệ thống'),
-        SystemConfig(config_key='MAXIMUM_PASSWORD_LENGHT', config_value='20', description='Độ dài tối đa của mật khẩu'),
-        SystemConfig(config_key='MINIMUM_PASSWORD_LENGTH', config_value='6', description='Độ dài tối thiếu của mật khẩu'),
-        SystemConfig(config_key='DEFAULT_PER_PAGE', config_value='12', description='Số lượng mục hiển thị mặc định trên mỗi trang'),
-        SystemConfig(config_key='CHECK_IN_TIME', config_value='14:00', description='Thời gian nhận phòng mặc định (HH:MM)'),
-        SystemConfig(config_key='CHECK_OUT_TIME', config_value='12:00', description='Thời gian trả phòng mặc định (HH:MM)'),
-        SystemConfig(config_key='HOTLINE_NUMBER', config_value='19001508', description='Số điện thoại hotline hỗ trợ khách hàng'),
-        SystemConfig(config_key='OTP_EXPIRATION_MINUTES', config_value='5', description='Thời gian tồn tại của mã OTP (phút)'),
-        SystemConfig(config_key='TAX_FEE_PERCENTAGE', config_value='0', description='Phần trăm thuế/phí áp dụng cho đơn đặt phòng'),
-        SystemConfig(config_key='AI_PREDICTION_INTERVAL', config_value='7', description='Số ngày dự báo giá tự động'),
-        SystemConfig(config_key='MAX_PRICE_ADJUSTMENT_PERCENTAGE', config_value='20', description='Phần trăm tăng giá tối đa')
-    ]
-    db.session.bulk_save_objects(configs)
-    
-    customers = User.query.filter_by(role=UserRole.CUSTOMER).limit(5).all()
-    if customers:
-        # 2. OTP & 4. SearchHistory
-        for customer in customers:
-            otp = OTP(
-                user_id=customer.id,
-                otp_code=str(random.randint(100000, 999999)),
-                expires_at=datetime.now() + timedelta(minutes=5),
-                is_used=True
-            )
-            db.session.add(otp)
-            
-        search = SearchHistory(
-            user_id=customers[0].id,
-            search_query="Khách sạn trung tâm Sài Gòn",
-            parsed_data={"name": None, "sort_by": None, "tag_ids": None, "capacity": None, "check_in": None, "location": "Hồ Chí Minh", "bed_count": None, "check_out": None, "max_price": None, "min_price": None, "min_rating": None},
-            is_useful=True
+            # Gán ngẫu nhiên 5-7 tiện ích nếu khách sạn chưa có tags
+            if not hotel.tags and all_tags:
+                num_tags = min(len(all_tags), random.randint(5, 7))
+                hotel.tags = random.sample(all_tags, k=num_tags)
+
+            hotels.append(hotel)
+
+    db.session.commit()
+    print(f"  -> Hoàn thành Khách sạn: Thêm mới {added}, Cập nhật {updated} (Tổng {len(hotels)} khách sạn).")
+    return hotels
+
+
+def safe_seed_room_types():
+    print("[3/7] Đang nạp Loại phòng từ seed_data/room_types.csv...")
+    csv_path = SEED_DATA_DIR / 'room_types.csv'
+    added, updated = 0, 0
+
+    if csv_path.exists():
+        with open(csv_path, encoding='utf-8-sig', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                hotel_name = (row.get('hotel_name') or '').strip()
+                rt_name = (row.get('name') or '').strip()
+                if not hotel_name or not rt_name:
+                    continue
+
+                hotel = db.session.query(Hotel).filter_by(name=hotel_name).first()
+                if not hotel:
+                    continue
+
+                desc = (row.get('description') or '').strip()
+                price = float(row.get('base_price') or 1000000)
+                max_occ = int(row.get('max_occupancy') or 2)
+                bed_count = int(row.get('bed_count') or 1)
+                bed_type = (row.get('bed_type') or 'giường đôi').strip()
+                image_url = (row.get('image_url') or '').strip() or None
+
+                room_type = db.session.query(RoomType).filter_by(hotel_id=hotel.id, name=rt_name).first()
+                if not room_type:
+                    room_type = RoomType(
+                        hotel_id=hotel.id,
+                        name=rt_name,
+                        description=desc,
+                        base_price=price,
+                        max_occupancy=max_occ,
+                        bed_count=bed_count,
+                        bed_type=bed_type,
+                        image_url=image_url,
+                        is_active=True
+                    )
+                    db.session.add(room_type)
+                    added += 1
+                else:
+                    room_type.description = desc
+                    room_type.base_price = price
+                    room_type.max_occupancy = max_occ
+                    room_type.bed_count = bed_count
+                    room_type.bed_type = bed_type
+                    if image_url:
+                        room_type.image_url = image_url
+                    room_type.is_active = True
+                    updated += 1
+        db.session.commit()
+
+    # Tự động bổ sung loại phòng cho các khách sạn còn thiếu trong DB
+    all_hotels = db.session.query(Hotel).all()
+    for hotel in all_hotels:
+        existing_types = {rt.name for rt in hotel.room_types}
+        if not existing_types:
+            for rt_def in DEFAULT_ROOM_TYPES_FALLBACK:
+                imgs = ROOM_TYPE_IMAGES.get(rt_def['name'], [])
+                chosen_img = random.choice(imgs) if imgs else None
+                room_type = RoomType(
+                    hotel_id=hotel.id,
+                    name=rt_def['name'],
+                    description=rt_def['desc'],
+                    base_price=rt_def['price'],
+                    max_occupancy=rt_def['max_occ'],
+                    bed_count=rt_def['bed_count'],
+                    bed_type=rt_def['bed_type'],
+                    image_url=chosen_img,
+                    is_active=True
+                )
+                db.session.add(room_type)
+                added += 1
+    db.session.commit()
+    print(f"  -> Hoàn thành Loại phòng: Thêm mới {added}, Cập nhật {updated}.")
+
+
+def safe_seed_floors_and_rooms():
+    print("[4/7] Đang nạp Tầng (Floor) và Phòng (Room) từ seed_data/floors_rooms.csv...")
+    csv_path = SEED_DATA_DIR / 'floors_rooms.csv'
+    added_floors, updated_floors = 0, 0
+    added_rooms, updated_rooms = 0, 0
+
+    processed_hotels = set()
+
+    if csv_path.exists():
+        with open(csv_path, encoding='utf-8-sig', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                hotel_name = (row.get('hotel_name') or '').strip()
+                floor_num = int(row.get('floor_number') or 1)
+                floor_name = (row.get('floor_name') or f'Tầng {floor_num}').strip()
+                room_num = (row.get('room_number') or '').strip()
+                rt_name = (row.get('room_type_name') or '').strip()
+                status_str = (row.get('status') or 'AVAILABLE').strip().upper()
+                notes = (row.get('notes') or '').strip() or None
+
+                hotel = db.session.query(Hotel).filter_by(name=hotel_name).first()
+                if not hotel:
+                    continue
+
+                processed_hotels.add(hotel.id)
+
+                # 1. Tìm hoặc tạo Floor
+                floor = db.session.query(Floor).filter_by(hotel_id=hotel.id, floor_number=floor_num).first()
+                if not floor:
+                    floor = Floor(hotel_id=hotel.id, floor_number=floor_num, name=floor_name)
+                    db.session.add(floor)
+                    db.session.flush()
+                    added_floors += 1
+                else:
+                    if floor_name and floor.name != floor_name:
+                        floor.name = floor_name
+                        updated_floors += 1
+
+                # 2. Tìm RoomType tương ứng
+                room_type = db.session.query(RoomType).filter_by(hotel_id=hotel.id, name=rt_name).first()
+                if not room_type:
+                    # Lấy loại phòng đầu tiên nếu không khớp tên
+                    room_type = db.session.query(RoomType).filter_by(hotel_id=hotel.id).first()
+                    if not room_type:
+                        continue
+
+                # 3. Tìm hoặc tạo Room
+                room_status = getattr(RoomStatus, status_str, RoomStatus.AVAILABLE)
+                room = db.session.query(Room).join(RoomType).filter(
+                    RoomType.hotel_id == hotel.id,
+                    Room.room_number == room_num
+                ).first()
+
+                if not room:
+                    room = Room(
+                        room_type_id=room_type.id,
+                        floor_id=floor.id,
+                        floor=floor_num,
+                        room_number=room_num,
+                        status=room_status,
+                        notes=notes,
+                        is_active=True
+                    )
+                    db.session.add(room)
+                    added_rooms += 1
+                else:
+                    room.floor_id = floor.id
+                    room.floor = floor_num
+                    room.room_type_id = room_type.id
+                    room.status = room_status
+                    room.notes = notes
+                    room.is_active = True
+                    updated_rooms += 1
+
+        db.session.commit()
+
+    # Bổ sung tầng và phòng mặc định cho bất kỳ khách sạn nào chưa có trong floors_rooms.csv
+    all_hotels = db.session.query(Hotel).all()
+    for hotel in all_hotels:
+        if hotel.id in processed_hotels:
+            continue
+
+        existing_floors = {f.floor_number: f for f in hotel.floors}
+        for f_num in [1, 2, 3]:
+            if f_num not in existing_floors:
+                floor = Floor(hotel_id=hotel.id, floor_number=f_num, name=f"Tầng {f_num}")
+                db.session.add(floor)
+                db.session.flush()
+                existing_floors[f_num] = floor
+                added_floors += 1
+
+        existing_rooms = {r.room_number for rt in hotel.room_types for r in rt.rooms}
+        if not existing_rooms and hotel.room_types:
+            rts = hotel.room_types
+            for f_num in [1, 2, 3]:
+                floor_obj = existing_floors[f_num]
+                for r_idx in range(1, 4):
+                    r_num = f"{f_num}{r_idx:02d}"
+                    assigned_rt = rts[(f_num + r_idx) % len(rts)]
+                    room = Room(
+                        room_type_id=assigned_rt.id,
+                        floor_id=floor_obj.id,
+                        floor=f_num,
+                        room_number=r_num,
+                        status=RoomStatus.AVAILABLE,
+                        notes=f"Phòng {r_num} tiện nghi",
+                        is_active=True
+                    )
+                    db.session.add(room)
+                    added_rooms += 1
+
+    db.session.commit()
+    print(f"  -> Hoàn thành Tầng: Thêm mới {added_floors}, Cập nhật {updated_floors}.")
+    print(f"  -> Hoàn thành Phòng: Thêm mới {added_rooms}, Cập nhật {updated_rooms}.")
+
+
+def safe_seed_users():
+    print("[5/7] Đang nạp Người dùng (Users) từ seed_data/users.csv...")
+    csv_path = SEED_DATA_DIR / 'users.csv'
+    added, updated = 0, 0
+
+    if csv_path.exists():
+        with open(csv_path, encoding='utf-8-sig', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                username = (row.get('username') or '').strip()
+                email = (row.get('email') or '').strip()
+                raw_password = (row.get('password') or '123').strip()
+                role_str = (row.get('role') or 'CUSTOMER').strip().upper()
+                hotel_name = (row.get('hotel_name') or '').strip()
+                is_verified = (row.get('is_verified') or 'True').strip().lower() == 'true'
+                phone = (row.get('phone') or '').strip() or None
+
+                if not username or not email:
+                    continue
+
+                role = getattr(UserRole, role_str, UserRole.CUSTOMER)
+                hotel_id = None
+                if hotel_name:
+                    hotel = db.session.query(Hotel).filter_by(name=hotel_name).first()
+                    if hotel:
+                        hotel_id = hotel.id
+
+                user = db.session.query(User).filter(
+                    (User.username == username) | (User.email == email)
+                ).first()
+
+                if not user:
+                    user = User(
+                        username=username,
+                        email=email,
+                        password=hash_password(raw_password),
+                        role=role,
+                        is_verified=is_verified,
+                        phone=phone,
+                        hotel_id=hotel_id
+                    )
+                    db.session.add(user)
+                    added += 1
+                else:
+                    user.username = username
+                    user.email = email
+                    user.role = role
+                    user.is_verified = is_verified
+                    if phone:
+                        user.phone = phone
+                    if hotel_id is not None:
+                        user.hotel_id = hotel_id
+                    updated += 1
+        db.session.commit()
+
+    # Đảm bảo có ít nhất 1 Admin và Lễ tân cho từng khách sạn
+    admin_user = db.session.query(User).filter_by(role=UserRole.ADMIN).first()
+    if not admin_user:
+        admin_user = User(
+            username='admin',
+            email='admin@hotel.com',
+            password=hash_password('123'),
+            role=UserRole.ADMIN,
+            is_verified=True,
+            phone='0901234567'
         )
-        db.session.add(search)
-        
-    # 3. PricePrediction & 5. PriceHistory
-    if created_hotels:
-        for hotel in created_hotels[:3]:
-            # Tạo 1 gợi ý tăng giá chung cho cả khách sạn
+        db.session.add(admin_user)
+        added += 1
+
+    # Đảm bảo 2 khách sạn đầu tiên đều có lễ tân được gắn đúng hotel_id
+    hotels = db.session.query(Hotel).limit(2).all()
+    for idx, hotel in enumerate(hotels, start=1):
+        recept_username = f"letan_ks{idx}"
+        recept_email = f"letan{idx}@hotel.com"
+        recept = db.session.query(User).filter(
+            (User.username == recept_username) | (User.email == recept_email)
+        ).first()
+        if not recept:
+            recept = User(
+                username=recept_username,
+                email=recept_email,
+                password=hash_password('123'),
+                role=UserRole.RECEPTIONIST,
+                is_verified=True,
+                phone=f"090234567{idx}",
+                hotel_id=hotel.id
+            )
+            db.session.add(recept)
+            added += 1
+        else:
+            recept.username = recept_username
+            recept.hotel_id = hotel.id
+            recept.role = UserRole.RECEPTIONIST
+            updated += 1
+
+    db.session.commit()
+    print(f"  -> Hoàn thành Người dùng: Thêm mới {added}, Cập nhật {updated}.")
+
+
+def safe_seed_system_configs():
+    print("[6/7] Đang nạp Cấu hình hệ thống (SystemConfig)...")
+    configs = [
+        ('MAX_ROOMS_PER_BOOKING', '5', 'Số phòng tối đa được đặt trong 1 đơn'),
+        ('CANCELLATION_FEE_PERCENTAGE', '10', 'Phần trăm phí phạt nếu hủy phòng sát ngày'),
+        ('MAINTENANCE_MODE', 'false', 'Bật/tắt chế độ bảo trì toàn hệ thống'),
+        ('MAXIMUM_PASSWORD_LENGHT', '20', 'Độ dài tối đa của mật khẩu'),
+        ('MINIMUM_PASSWORD_LENGTH', '6', 'Độ dài tối thiếu của mật khẩu'),
+        ('DEFAULT_PER_PAGE', '12', 'Số lượng mục hiển thị mặc định trên mỗi trang'),
+        ('CHECK_IN_TIME', '14:00', 'Thời gian nhận phòng mặc định (HH:MM)'),
+        ('CHECK_OUT_TIME', '12:00', 'Thời gian trả phòng mặc định (HH:MM)'),
+        ('HOTLINE_NUMBER', '19001508', 'Số điện thoại hotline hỗ trợ khách hàng'),
+        ('OTP_EXPIRATION_MINUTES', '5', 'Thời gian tồn tại của mã OTP (phút)'),
+        ('TAX_FEE_PERCENTAGE', '0', 'Phần trăm thuế/phí áp dụng cho đơn đặt phòng'),
+        ('AI_PREDICTION_INTERVAL', '7', 'Số ngày dự báo giá tự động'),
+        ('MAX_PRICE_ADJUSTMENT_PERCENTAGE', '20', 'Phần trăm tăng giá tối đa')
+    ]
+
+    added, updated = 0, 0
+    for key, val, desc in configs:
+        cfg = db.session.query(SystemConfig).filter_by(config_key=key).first()
+        if not cfg:
+            cfg = SystemConfig(config_key=key, config_value=val, description=desc)
+            db.session.add(cfg)
+            added += 1
+        else:
+            if not cfg.description:
+                cfg.description = desc
+                updated += 1
+    db.session.commit()
+    print(f"  -> Hoàn thành SystemConfig: Thêm mới {added}, Cập nhật {updated}.")
+
+
+def safe_seed_search_histories_and_sample_data():
+    print("[7/7] Đang nạp Lịch sử Tìm kiếm mẫu & Dự báo giá...")
+    customer = db.session.query(User).filter_by(role=UserRole.CUSTOMER).first()
+    user_id = customer.id if customer else None
+
+    # Mẫu lịch sử tìm kiếm đa dạng
+    sample_searches = [
+        {
+            "user_id": user_id,
+            "keyword": "Wyndham Legend Halong",
+            "location": "Hạ Long",
+            "check_in_date": datetime.now().date() + timedelta(days=5),
+            "check_out_date": datetime.now().date() + timedelta(days=7),
+            "guest_count": 2,
+            "room_count": 1,
+            "search_query": "Wyndham Legend Halong Hạ Long",
+            "is_useful": True
+        },
+        {
+            "user_id": user_id,
+            "keyword": "Khách sạn hướng biển có hồ bơi",
+            "location": "Hạ Long",
+            "check_in_date": datetime.now().date() + timedelta(days=12),
+            "check_out_date": datetime.now().date() + timedelta(days=15),
+            "guest_count": 4,
+            "room_count": 2,
+            "search_query": "Khách sạn hướng biển có hồ bơi Hạ Long",
+            "is_useful": True
+        },
+        {
+            "user_id": None,  # Khách vãng lai
+            "session_id": "guest_session_demo_12345",
+            "ip_address": "127.0.0.1",
+            "keyword": "FLC Grand Hotel Hạ Long",
+            "location": "Hạ Long",
+            "check_in_date": datetime.now().date() + timedelta(days=20),
+            "check_out_date": datetime.now().date() + timedelta(days=22),
+            "guest_count": 2,
+            "room_count": 1,
+            "search_query": "FLC Grand Hotel Hạ Long",
+            "is_useful": True
+        }
+    ]
+
+    added = 0
+    for s_data in sample_searches:
+        existing = db.session.query(SearchHistory).filter_by(
+            user_id=s_data.get('user_id'),
+            keyword=s_data.get('keyword'),
+            location=s_data.get('location')
+        ).first()
+
+        if not existing:
+            sh = SearchHistory(
+                user_id=s_data.get('user_id'),
+                session_id=s_data.get('session_id'),
+                ip_address=s_data.get('ip_address'),
+                keyword=s_data.get('keyword'),
+                location=s_data.get('location'),
+                check_in_date=s_data.get('check_in_date'),
+                check_out_date=s_data.get('check_out_date'),
+                guest_count=s_data.get('guest_count', 1),
+                room_count=s_data.get('room_count', 1),
+                search_query=s_data.get('search_query'),
+                is_useful=s_data.get('is_useful', True)
+            )
+            db.session.add(sh)
+            added += 1
+
+    # Tạo giá dự báo mẫu cho các khách sạn
+    first_hotel = db.session.query(Hotel).first()
+    if first_hotel:
+        existing_pred = db.session.query(PricePrediction).filter_by(hotel_id=first_hotel.id).first()
+        if not existing_pred:
             pred = PricePrediction(
-                hotel_id=hotel.id,
+                hotel_id=first_hotel.id,
                 target_date=datetime.now().date() + timedelta(days=30),
                 adjustment_percentage=0.15,
-                reason="Mùa du lịch cao điểm"
+                reason="Mùa du lịch cao điểm",
+                is_applied=True
             )
             db.session.add(pred)
-            
-            # Vẫn tạo lịch sử giá cho từng phòng
-            for rt in hotel.room_types:
-                
-                history = PriceHistory(
-                    room_type_id=rt.id,
-                    old_price=float(rt.base_price) * 0.9,
-                    new_price=rt.base_price
-                )
-                db.session.add(history)
-                
-    db.session.commit()
 
-def seed_data():
+    db.session.commit()
+    print(f"  -> Hoàn thành Lịch sử Tìm kiếm mẫu: Thêm mới {added}.")
+
+
+def ensure_schema_upgrades():
+    from sqlalchemy import text, inspect
+    inspector = inspect(db.engine)
+    
+    # Kiểm tra cột floor_id trong bảng rooms
+    if 'rooms' in inspector.get_table_names():
+        room_cols = [c['name'] for c in inspector.get_columns('rooms')]
+        if 'floor_id' not in room_cols:
+            print("  [*] Tự động bổ sung cột 'floor_id' vào bảng 'rooms'...")
+            try:
+                db.session.execute(text("ALTER TABLE rooms ADD COLUMN floor_id INT NULL"))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"      [Lưu ý khi thêm floor_id]: {e}")
+
+    # Kiểm tra các cột mở rộng trong bảng search_histories
+    if 'search_histories' in inspector.get_table_names():
+        sh_cols = [c['name'] for c in inspector.get_columns('search_histories')]
+        cols_to_add = [
+            ('session_id', 'VARCHAR(100) NULL'),
+            ('ip_address', 'VARCHAR(50) NULL'),
+            ('keyword', 'VARCHAR(255) NULL'),
+            ('location', 'VARCHAR(100) NULL'),
+            ('check_in_date', 'DATE NULL'),
+            ('check_out_date', 'DATE NULL'),
+            ('guest_count', 'INT DEFAULT 1'),
+            ('room_count', 'INT DEFAULT 1'),
+            ('created_at', 'DATETIME NULL'),
+        ]
+        for col_name, col_type in cols_to_add:
+            if col_name not in sh_cols:
+                try:
+                    db.session.execute(text(f"ALTER TABLE search_histories ADD COLUMN {col_name} {col_type}"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+        try:
+            db.session.execute(text("UPDATE search_histories SET created_at = searched_at WHERE created_at IS NULL AND searched_at IS NOT NULL"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
+def run_seed(reset_db=False):
     app = create_app()
     with app.app_context():
-        print("Đang xóa dữ liệu cũ và tạo mới Database...")
-        db.drop_all()
-        db.create_all()
+        print("=" * 60)
+        if reset_db:
+            print("[CẢNH BÁO] Chế độ --reset: Đang xóa sạch và khởi tạo lại Database...")
+            db.drop_all()
+            db.create_all()
+            print("  -> Khởi tạo lại bảng thành công.")
+        else:
+            print("[SAFE MODE] Đang đảm bảo cấu trúc bảng và nạp dữ liệu an toàn...")
+            db.create_all()
+            ensure_schema_upgrades()
 
-        seed_users()
-        created_hotels = seed_hotels_and_tags()
-        seed_receptionists(created_hotels)
-        seed_rooms(created_hotels)
-        seed_bookings_and_payments(created_hotels)
-        seed_other_tables(created_hotels)
+        all_tags = safe_seed_tags()
+        safe_seed_hotels(all_tags)
+        safe_seed_room_types()
+        safe_seed_floors_and_rooms()
+        safe_seed_users()
+        safe_seed_system_configs()
+        safe_seed_search_histories_and_sample_data()
 
-        print("====== THÀNH CÔNG! ĐÃ SEED DỮ LIỆU HOÀN TẤT ======")
+        print("=" * 60)
+        print("====== NẠP DỮ LIỆU THÀNH CÔNG (IDEMPOTENT / AN TOÀN) ======")
+
 
 if __name__ == '__main__':
-    seed_data()
+    reset = '--reset' in sys.argv
+    run_seed(reset_db=reset)

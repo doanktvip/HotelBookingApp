@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, render_template, request, jsonify, url_for, flash
+from flask import Blueprint, redirect, render_template, request, jsonify, url_for, flash, session
 from app.services import HotelService, BookingService, SearchService, PricePrediction
 from app.extensions import db
 from app.utils import get_vn_time
@@ -6,13 +6,51 @@ from datetime import timedelta
 from urllib.parse import urlparse
 from flask_login import current_user
 
+from app.models import Hotel
+
 hotel_bp = Blueprint('hotel', __name__)
+
+@hotel_bp.route('/rooms')
+@hotel_bp.route('/search')
+def rooms_search():
+    hotel_id = request.args.get('hotel_id', type=int)
+    if not hotel_id:
+        hotel = db.session.query(Hotel).first()
+        hotel_id = hotel.id if hotel else 1
+    return hotel_detail(hotel_id)
 
 @hotel_bp.route('/hotels')
 def hotel():
     hotel_service = HotelService(db.session)
+    search_service = SearchService(db.session)
     
     keyword = request.args.get('keyword', '').strip()
+    location = request.args.get('location', '').strip()
+    check_in = request.args.get('check_in', '').strip()
+    check_out = request.args.get('check_out', '').strip()
+    guest_count = request.args.get('guest_count', type=int) or request.args.get('capacity', type=int) or 1
+    room_count = request.args.get('room_count', type=int) or 1
+    page = request.args.get('page', 1, type=int)
+    
+    # Tự động ghi nhận lịch sử tìm kiếm
+    if page == 1 and (keyword or location or check_in or check_out):
+        import uuid
+        if not current_user.is_authenticated and 'guest_id' not in session:
+            session['guest_id'] = str(uuid.uuid4())
+        session_id = session.get('guest_id') if not current_user.is_authenticated else None
+        
+        search_service.record_search(
+            keyword=keyword,
+            location=location,
+            check_in_str=check_in,
+            check_out_str=check_out,
+            guest_count=guest_count,
+            room_count=room_count,
+            user=current_user,
+            session_id=session_id,
+            ip_address=request.remote_addr
+        )
+
     async_keyword = None
     
     if keyword:
@@ -21,9 +59,9 @@ def hotel():
 
     else:
         hotels_pagination = hotel_service.get_hotels(
-            location=request.args.get('location', '').strip(),
-            check_in=request.args.get('check_in', '').strip(),
-            check_out=request.args.get('check_out', '').strip(),
+            location=location,
+            check_in=check_in,
+            check_out=check_out,
             min_price=request.args.get('min_price', type=float),
             max_price=request.args.get('max_price', type=float),
             tag_ids=request.args.getlist('tags', type=int),
@@ -31,7 +69,6 @@ def hotel():
             per_page=8
         )
 
-    
     all_tags = hotel_service.get_all_tags()
     
     return render_template('hotel.html', hotels_pagination=hotels_pagination, all_tags=all_tags, async_keyword=async_keyword)

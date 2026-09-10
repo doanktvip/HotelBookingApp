@@ -100,6 +100,7 @@ def momo_return():
 
 
 @booking_bp.route('/booking/momo-ipn', methods=['POST'])
+@booking_bp.route('/api/payment/momo-ipn', methods=['POST'])
 def momo_ipn():
     ipn_data = request.json
     if not ipn_data:
