@@ -39,13 +39,19 @@
                 {% call render_nav_item(href="/my-bookings") %}
                   <i class="bi bi-clipboard-check"></i> Đơn của tôi
                 {% endcall %}
+                {% call render_nav_item(href="/search-history") %}
+                  <i class="bi bi-clock-history"></i> Lịch sử tìm kiếm
+                {% endcall %}
               
               {% elif current_user.role.name == 'RECEPTIONIST' %}
-                {% call render_nav_item(href="/recept") %}
-                  <i class="bi bi-calendar-check"></i> Quản lý phòng - Đặt phòng
+                {% call render_nav_item(href="/recept?tab=list") %}
+                  <i class="bi bi-calendar-check"></i> Quản lý đơn đặt phòng
                 {% endcall %}
               
               {% elif current_user.role.name == 'ADMIN' %}
+                {% call render_nav_item(href="/admin/bookings?tab=list") %}
+                  <i class="bi bi-calendar-check"></i> Quản lý đơn đặt phòng
+                {% endcall %}
                 {% call render_nav_item(href="/dashboard") %}
                   <i class="bi bi-columns-gap"></i> Tổng quan
                 {% endcall %}
@@ -56,6 +62,13 @@
                   <i class="bi bi-gear"></i> Cấu hình
                 {% endcall %}
               {% endif %}
+            {% else %}
+              {% call render_nav_item(href="/hotels", exact=True) %}
+                <i class="bi bi-house-door"></i> Danh sách khách sạn
+              {% endcall %}
+              {% call render_nav_item(href="/search-history") %}
+                <i class="bi bi-clock-history"></i> Lịch sử tìm kiếm
+              {% endcall %}
             {% endif %}
           </div>
           
@@ -77,6 +90,11 @@
                     <a class="dropdown-item px-3 py-2 rounded" href="/profile">
                       <span class="text-secondary" style="font-size: 13px;">Thông tin cá nhân</span><br>
                       <strong class="text-primary fs-6">{{ current_user.username }}</strong>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item px-3 py-2 rounded d-flex align-items-center gap-2 text-dark" href="{{ url_for('search_history.view_history') }}">
+                      <i class="bi bi-clock-history text-primary"></i> Lịch sử tìm kiếm
                     </a>
                   </li>
                   <li><hr class="dropdown-divider my-2"></li>

@@ -1,0 +1,144 @@
+{% extends 'layout/base.html' %}
+{% import 'layout/macros.html' as ui %}
+
+{% block title %}Lịch sử tìm kiếm - StayNow{% endblock %}
+
+{% block content %}
+{% call ui.render_page_body('Lịch sử tìm kiếm', 'Xem và tiếp tục các lượt tìm kiếm phòng gần đây của bạn') %}
+
+    <!-- Top Action Bar -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2" style="margin-top: -65px;">
+        <div class="d-none d-md-block"></div>
+        <div class="d-flex align-items-center gap-2 position-relative" style="z-index: 10;">
+            {% if histories %}
+            <button type="button" class="btn btn-outline-danger rounded-pill px-4 py-2 fw-medium shadow-sm" data-bs-toggle="modal" data-bs-target="#clearAllModal">
+                <i class="bi bi-trash3 me-1"></i> Xóa tất cả
+            </button>
+            {% endif %}
+            <a href="{{ url_for('hotel.hotel') }}" class="btn btn-primary rounded-pill px-4 py-2 fw-medium shadow-sm">
+                <i class="bi bi-search me-1"></i> Tìm kiếm mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Danh sách lịch sử tìm kiếm -->
+    {% if not histories %}
+        <div class="text-center py-5 bg-white rounded-4 shadow-sm border mt-3">
+            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-4" style="width: 90px; height: 90px;">
+                <i class="bi bi-clock-history" style="font-size: 3rem;"></i>
+            </div>
+            <h4 class="fw-bold text-dark mb-2">Chưa có lịch sử tìm kiếm nào</h4>
+            <p class="text-muted mb-4 mx-auto" style="max-width: 480px;">
+                Mọi tìm kiếm khách sạn, địa điểm và thời gian lưu trú của bạn sẽ được lưu tại đây để bạn có thể xem lại và đặt phòng nhanh chóng bất cứ lúc nào.
+            </p>
+            <a href="{{ url_for('hotel.hotel') }}" class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow-sm">
+                <i class="bi bi-compass me-2"></i> Khám phá khách sạn ngay
+            </a>
+        </div>
+    {% else %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted small fw-medium">
+                <i class="bi bi-clock-history me-1 text-primary"></i> Hiển thị <strong>{{ histories|length }}</strong> lượt tìm kiếm gần nhất
+            </span>
+        </div>
+
+        <div class="d-flex flex-column gap-3" id="history-container">
+            {% for item in histories %}
+            <div class="card bg-white shadow-sm rounded-4 border hover-shadow transition" id="history-row-{{ item.id }}">
+                <div class="card-body p-4">
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                        
+                        <!-- Left: Thông tin tìm kiếm -->
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-4 d-flex justify-content-center align-items-center flex-shrink-0 mt-1" style="width: 50px; height: 50px;">
+                                <i class="bi bi-search fs-4"></i>
+                            </div>
+                            
+                            <div>
+                                <h5 class="fw-bold text-dark mb-2">
+                                    {{ item.keyword or item.location or item.search_query or 'Tìm kiếm mọi khách sạn' }}
+                                </h5>
+
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                    {% if item.location and item.location != item.keyword %}
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-medium border border-danger-subtle">
+                                        <i class="bi bi-geo-alt-fill me-1"></i> {{ item.location }}
+                                    </span>
+                                    {% endif %}
+
+                                    {% if item.check_in_date and item.check_out_date %}
+                                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-medium border border-primary-subtle">
+                                        <i class="bi bi-calendar3 me-1"></i> {{ item.check_in_date.strftime('%d/%m/%Y') }} &rarr; {{ item.check_out_date.strftime('%d/%m/%Y') }}
+                                        {% set nights = (item.check_out_date - item.check_in_date).days %}
+                                        {% if nights > 0 %}({{ nights }} đêm){% endif %}
+                                    </span>
+                                    {% elif item.check_in_date %}
+                                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-medium border border-primary-subtle">
+                                        <i class="bi bi-calendar-check me-1"></i> Nhận phòng: {{ item.check_in_date.strftime('%d/%m/%Y') }}
+                                    </span>
+                                    {% endif %}
+
+                                    {% if item.guest_count or item.room_count %}
+                                    <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-3 py-1 fw-medium border border-info-subtle">
+                                        <i class="bi bi-people me-1"></i> {{ item.guest_count or 1 }} khách &bull; {{ item.room_count or 1 }} phòng
+                                    </span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="text-secondary small">
+                                    <i class="bi bi-clock me-1"></i> Tìm kiếm lúc: {{ item.created_at.strftime('%H:%M, %d/%m/%Y') }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Các nút hành động -->
+                        <div class="d-flex align-items-center gap-2 align-self-end align-self-lg-center">
+                            <!-- Nút Tìm lại (Re-search) -->
+                            <a href="{{ url_for('search_history.re_search', history_id=item.id) }}" class="btn btn-primary rounded-pill px-4 py-2 fw-medium shadow-sm d-flex align-items-center gap-2">
+                                <i class="bi bi-arrow-repeat"></i> Tìm lại
+                            </a>
+
+                            <!-- Nút Xóa mục này -->
+                            <form action="{{ url_for('search_history.delete_item', history_id=item.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa lịch sử tìm kiếm này?');">
+                                <button type="submit" class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center shadow-none p-0" style="width: 40px; height: 40px;" title="Xóa bản ghi này">
+                                    <i class="bi bi-trash text-danger"></i>
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Modal Xác Nhận Xóa Toàn Bộ Lịch Sử -->
+    <div class="modal fade" id="clearAllModal" tabindex="-1" aria-labelledby="clearAllModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger" id="clearAllModalLabel">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Xóa toàn bộ lịch sử?
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <p class="text-muted mb-0">
+                        Hành động này sẽ xóa vĩnh viễn tất cả các bản ghi lịch sử tìm kiếm của bạn. Bạn có chắc chắn muốn tiếp tục không?
+                    </p>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Hủy bỏ</button>
+                    <form action="{{ url_for('search_history.clear_all') }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-danger rounded-pill px-4 fw-medium">
+                            <i class="bi bi-trash3 me-1"></i> Đồng ý xóa
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endcall %}
+{% endblock %}

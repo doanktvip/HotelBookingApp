@@ -142,17 +142,18 @@
                         <span class="input-group-text bg-light border-end-0 rounded-start-pill text-secondary px-3">
                             <i class="bi bi-search"></i>
                         </span>
-                        <input type="text" name="search" value="{{ request.args.get('search', '') }}"
+                        <input type="text" id="search-input" name="search" value="{{ request.args.get('search', '') }}"
                                class="form-control bg-light border-start-0 shadow-none"
                                placeholder="Tìm theo mã đơn, tên khách, SĐT...">
                     </div>
                     
-                    <select name="status" class="form-select bg-light shadow-none" style="width: auto;">
+                    <select id="status-filter" name="status" class="form-select bg-light shadow-none" style="width: auto;">
                         <option value="ALL">Tất cả trạng thái</option>
                         {% for st in BookingStatus %}
                             <option value="{{ st.name }}" {% if current_status == st.name %}selected{% endif %}>{{ st.value }}</option>
                         {% endfor %}
-                        <option value="OCCUPIED" {% if current_status == 'OCCUPIED' %}selected{% endif %}>Đang sử dụng</option>
+                        <option value="CHECKED_IN" {% if current_status in ('CHECKED_IN', 'OCCUPIED') %}selected{% endif %}>Đang sử dụng</option>
+                        <option value="OCCUPIED" {% if current_status in ('CHECKED_IN', 'OCCUPIED') %}selected{% endif %}>Đang sử dụng (Occupied)</option>
                     </select>
 
                     <select name="check_in_date" class="form-select bg-light shadow-none" style="width: auto;">
@@ -160,7 +161,7 @@
                         <option value="today" {% if current_date == 'today' %}selected{% endif %}>Hôm nay</option>
                     </select>
                     
-                    <button type="submit" class="btn btn-primary rounded-end-pill px-4 shadow-sm">Lọc</button>
+                    <button type="submit" id="search-btn" class="btn btn-primary rounded-end-pill px-4 shadow-sm">Lọc</button>
 
                     <input type="hidden" name="tab" value="list">
                 </form>
@@ -180,7 +181,10 @@
                                 style="letter-spacing: 0.05em; padding-bottom: 1rem;">SĐT
                             </th>
                             <th class="text-secondary small fw-semibold text-uppercase"
-                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Phòng
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Loại phòng
+                            </th>
+                            <th class="text-secondary small fw-semibold text-uppercase"
+                                style="letter-spacing: 0.05em; padding-bottom: 1rem;">Số phòng
                             </th>
                             <th class="text-secondary small fw-semibold text-uppercase"
                                 style="letter-spacing: 0.05em; padding-bottom: 1rem;">Nhận phòng
@@ -198,19 +202,21 @@
                         </thead>
                         <tbody>
                         {% for booking in bookings.items %}
-                        <tr class="border-bottom border-light">
-                            <td class="fw-bold text-dark py-3">BK-{{ booking.id }}</td>
-                            <td class="fw-medium text-dark py-3">{{ booking.customer.username }}</td>
-                            <td class="text-secondary py-3">{{ booking.customer.phone or 'N/A' }}</td>
-                            <td class="fw-bold text-dark py-3">
-                                {{ booking.booking_details[0].room.room_number if booking.booking_details else 'Chưa
-                                xếp' }}
+                        <tr class="border-bottom border-light booking-row" data-booking-code="BK{{ '%03d' % booking.id }}">
+                            <td class="fw-bold text-dark py-3 booking-code-cell">BK{{ '%03d' % booking.id }}</td>
+                            <td class="fw-medium text-dark py-3 customer-name-cell">{{ booking.customer.username }}</td>
+                            <td class="text-secondary py-3 customer-phone-cell">{{ booking.customer.phone or 'N/A' }}</td>
+                            <td class="fw-medium text-dark py-3 room-type-cell">
+                                {{ booking.booking_details[0].room.room_type.name if (booking.booking_details and booking.booking_details[0].room and booking.booking_details[0].room.room_type) else (booking.room_type.name if booking.room_type else 'N/A') }}
                             </td>
-                            <td class="text-secondary py-3">{{ booking.check_in.strftime('%d/%m/%Y') }}</td>
-                            <td class="text-secondary py-3">{{ booking.check_out.strftime('%d/%m/%Y') }}</td>
-                            <td class="py-3">
+                            <td class="fw-bold text-dark py-3 room-number-cell">
+                                {{ booking.booking_details[0].room.room_number if booking.booking_details else 'Chưa xếp' }}
+                            </td>
+                            <td class="text-secondary py-3 checkin-date-cell">{{ booking.check_in.strftime('%d/%m/%Y') }}</td>
+                            <td class="text-secondary py-3 checkout-date-cell">{{ booking.check_out.strftime('%d/%m/%Y') }}</td>
+                            <td class="py-3 status-cell">
                                 {% if booking.is_currently_staying %}
-                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-bold border border-danger-subtle">Đang dùng</span>
+                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-bold border border-danger-subtle">Đang sử dụng</span>
                                 {% else %}
                                 {{ render_status_badge(booking.status.name) }}
                                 {% endif %}
@@ -220,13 +226,15 @@
                                       action="{{ url_for('receptionist.update_booking_status', booking_id=booking.id) }}"
                                       class="m-0 p-0 d-inline">
                                     {% if booking.is_currently_staying %}
-                                    <button type="submit" name="action" value="checkout"
-                                            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 rounded-2 px-3 fw-medium shadow-sm">
+                                    <button type="button" onclick="openCheckoutModal({{ booking.id }})"
+                                            id="checkout-btn-{{ booking.id }}"
+                                            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 rounded-2 px-3 fw-medium shadow-sm checkout-btn">
                                         <i class="bi bi-box-arrow-right"></i> Check-out
                                     </button>
                                     {% elif booking.status.name == 'CONFIRMED' and booking.check_in <= today %}
                                     <button type="submit" name="action" value="checkin"
-                                            class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 rounded-2 px-3 fw-medium shadow-sm">
+                                            id="checkin-btn-{{ booking.id }}"
+                                            class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 rounded-2 px-3 fw-medium shadow-sm checkin-btn">
                                         <i class="bi bi-check-circle"></i> Check-in
                                     </button>
                                     {% endif %}
@@ -235,9 +243,9 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
+                            <td colspan="9" class="text-center py-5 text-muted empty-bookings-cell">
                                 <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
-                                Không có đơn đặt phòng nào
+                                Không tìm thấy thông tin đặt chỗ phù hợp
                             </td>
                         </tr>
                         {% endfor %}
@@ -320,5 +328,90 @@
             // window.location.reload();
         });
     }
+
+    function openCheckoutModal(bookingId) {
+        var modalEl = document.getElementById('checkoutModal');
+        var modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        
+        document.getElementById('checkoutForm').action = "/update_booking_status/" + bookingId;
+        
+        fetch('/api/checkout-details/' + bookingId)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('checkout_room_price').innerText = new Intl.NumberFormat('vi-VN').format(data.room_price) + ' đ';
+                
+                var lateFeeRow = document.getElementById('late_fee_row');
+                if (data.late_fee > 0) {
+                    lateFeeRow.style.display = 'flex';
+                    document.getElementById('checkout_late_fee').innerText = new Intl.NumberFormat('vi-VN').format(data.late_fee) + ' đ';
+                } else {
+                    lateFeeRow.style.display = 'none';
+                }
+                
+                document.getElementById('checkout_total').innerText = new Intl.NumberFormat('vi-VN').format(data.total) + ' đ';
+                document.getElementById('checkout_paid').innerText = new Intl.NumberFormat('vi-VN').format(data.paid) + ' đ';
+                document.getElementById('checkout_balance').innerText = new Intl.NumberFormat('vi-VN').format(data.balance) + ' đ';
+                
+                var btn = document.getElementById('confirmCheckoutBtn');
+                var alertBox = document.getElementById('checkout_alert');
+                if (data.balance > 0) {
+                    btn.disabled = true;
+                    btn.innerText = "Yêu cầu thanh toán thêm";
+                    if (alertBox) {
+                        alertBox.style.display = 'block';
+                    }
+                } else {
+                    btn.disabled = false;
+                    btn.innerText = "Xác nhận Check-out";
+                    if (alertBox) {
+                        alertBox.style.display = 'none';
+                    }
+                }
+            });
+    }
 </script>
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" id="checkoutForm" class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Thanh toán Check-out</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <input type="hidden" name="action" value="checkout">
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-secondary fw-medium">Tiền phòng:</span>
+                    <span class="fw-bold text-dark" id="checkout_room_price">0 đ</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3 text-danger" id="late_fee_row" style="display: none;">
+                    <span class="fw-medium">Phụ phí trả phòng muộn:</span>
+                    <span class="fw-bold" id="checkout_late_fee">0 đ</span>
+                </div>
+                <hr class="text-light">
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-secondary fw-medium">Tổng chi phí:</span>
+                    <span class="fw-bold fs-5 text-primary" id="checkout_total">0 đ</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-secondary fw-medium">Đã thanh toán (Online):</span>
+                    <span class="fw-bold text-success" id="checkout_paid">0 đ</span>
+                </div>
+                <div class="d-flex justify-content-between p-3 bg-light rounded-3 mt-3">
+                    <span class="fw-bold text-dark">Khách cần thanh toán:</span>
+                    <span class="fw-bold fs-4 text-danger" id="checkout_balance">0 đ</span>
+                </div>
+                <div id="checkout_alert" class="alert alert-warning mt-3 py-2 px-3 small" style="display: none;">
+                    Vui lòng yêu cầu khách thanh toán đầy đủ khoản còn thiếu trước khi xác nhận trả phòng!
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-light shadow-sm fw-medium px-4" data-bs-dismiss="modal" id="cancelCheckoutBtn">Hủy</button>
+                <button type="submit" class="btn btn-primary shadow-sm fw-medium px-4" id="confirmCheckoutBtn">Xác nhận Check-out</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
