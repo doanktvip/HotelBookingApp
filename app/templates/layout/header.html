@@ -52,6 +52,10 @@
                 {% call render_nav_item(href="/admin/bookings?tab=list") %}
                   <i class="bi bi-calendar-check"></i> Quản lý đơn đặt phòng
                 {% endcall %}
+                {% call render_nav_item(href=url_for('admin.predictions')) %}
+                  <i class="bi bi-graph-up-arrow"></i> Dự báo AI
+                {% endcall %}
+                <!-- Các tính năng dưới đây chưa có backend
                 {% call render_nav_item(href="/dashboard") %}
                   <i class="bi bi-columns-gap"></i> Tổng quan
                 {% endcall %}
@@ -61,6 +65,7 @@
                 {% call render_nav_item(href="/config") %}
                   <i class="bi bi-gear"></i> Cấu hình
                 {% endcall %}
+                -->
               {% endif %}
             {% else %}
               {% call render_nav_item(href="/hotels", exact=True) %}

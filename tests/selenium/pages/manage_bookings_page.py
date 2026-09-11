@@ -47,15 +47,19 @@ class ManageBookingsPage(BasePage):
             pass
 
     def search(self, text="", status="ALL", date=""):
+        time.sleep(0.5)  # Wait for page to be fully interactive
         input_el = self.find(*self.SEARCH_INPUT)
-        input_el.clear()
+        self.driver.execute_script("arguments[0].value = '';", input_el)
+        time.sleep(0.2)
         if text:
-            input_el.send_keys(text)
+            self.driver.execute_script("arguments[0].value = arguments[1];", input_el, text)
+            time.sleep(0.2)
 
         status_el = self.find(*self.STATUS_SELECT)
         sel_status = Select(status_el)
         try:
             sel_status.select_by_value(status)
+            time.sleep(0.2)
         except Exception:
             pass
 
@@ -64,12 +68,23 @@ class ManageBookingsPage(BasePage):
             sel_date = Select(date_el)
             try:
                 sel_date.select_by_value(date)
+                time.sleep(0.2)
             except Exception:
                 pass
 
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+
         btn = self.find(*self.SUBMIT_BTN)
+        old_url = self.driver.current_url
         self.driver.execute_script("arguments[0].click();", btn)
-        time.sleep(0.5)
+        
+        try:
+            WebDriverWait(self.driver, 5).until(EC.staleness_of(btn))
+        except:
+            pass
+        
+        time.sleep(1)
 
     def get_booking_rows(self):
         try:
@@ -80,7 +95,7 @@ class ManageBookingsPage(BasePage):
     def get_booking_codes(self):
         try:
             cells = self.finds(By.CSS_SELECTOR, ".booking-code-cell")
-            return [c.text.strip() for c in cells]
+            return [c.get_attribute("textContent").strip() for c in cells]
         except Exception:
             return []
 
@@ -153,28 +168,32 @@ class ManageBookingsPage(BasePage):
 
     def click_checkin(self, booking_id):
         xpath = f"//button[@id='checkin-btn-{booking_id}'] | //td[contains(text(), 'BK-{booking_id}') or contains(text(), 'BK{booking_id:03d}')]/..//button[@value='checkin']"
-        self.click(By.XPATH, xpath)
+        btn = self.find(By.XPATH, xpath)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", btn)
         time.sleep(0.5)
 
     def click_checkout(self, booking_id):
         xpath = f"//button[@id='checkout-btn-{booking_id}'] | //td[contains(text(), 'BK-{booking_id}') or contains(text(), 'BK{booking_id:03d}')]/..//button[contains(., 'Check-out')]"
-        self.click(By.XPATH, xpath)
+        btn = self.find(By.XPATH, xpath)
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", btn)
         self.wait_for_checkout_modal()
 
     def wait_for_checkout_modal(self):
         self.find(*self.CHECKOUT_MODAL)
-        time.sleep(0.5)
+        time.sleep(1)
 
     def confirm_checkout(self):
-        self.click(*self.CONFIRM_CHECKOUT_BTN)
-        time.sleep(0.5)
+        btn = self.find(*self.CONFIRM_CHECKOUT_BTN)
+        self.driver.execute_script("arguments[0].click();", btn)
+        time.sleep(1)
 
     def close_checkout_modal(self):
         try:
-            self.click(By.CSS_SELECTOR, "#cancelCheckoutBtn, #checkoutModal .btn-close")
+            btn = self.find(By.CSS_SELECTOR, "#cancelCheckoutBtn, #checkoutModal .btn-close")
+            self.driver.execute_script("arguments[0].click();", btn)
         except Exception:
             pass
-        time.sleep(0.5)
+        time.sleep(1)
 
     def get_checkout_modal_details(self):
         self.wait_for_checkout_modal()

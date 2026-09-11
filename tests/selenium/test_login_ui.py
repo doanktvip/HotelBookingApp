@@ -13,6 +13,7 @@ def test_login_success(live_server, selenium_driver, test_db, sample_customer):
     
     # Kì vọng: Chuyển hướng về trang chủ và hiển thị avatar
     assert page.is_user_avatar_displayed()
+    page.take_screenshot("login_success.png")
 
 
 def test_login_missing_username(live_server, selenium_driver, test_db):
@@ -23,6 +24,7 @@ def test_login_missing_username(live_server, selenium_driver, test_db):
     
     username_input = page.find(*page.LOGIN_USERNAME)
     assert username_input.get_attribute("validationMessage") != ""
+    page.take_screenshot("login_missing_username.png")
 
 def test_login_invalid_username(live_server, selenium_driver):
     page = AuthPage(selenium_driver)
@@ -32,6 +34,7 @@ def test_login_invalid_username(live_server, selenium_driver):
     
     toast_msg = page.get_toast_message()
     assert "không tồn tại" in toast_msg or toast_msg != ""
+    page.take_screenshot("login_invalid_username.png")
 
 def test_login_missing_password(live_server, selenium_driver):
     page = AuthPage(selenium_driver)
@@ -41,6 +44,7 @@ def test_login_missing_password(live_server, selenium_driver):
     
     pw_input = page.find(*page.LOGIN_PASSWORD)
     assert pw_input.get_attribute("validationMessage") != ""
+    page.take_screenshot("login_missing_password.png")
 
 def test_login_invalid_password(live_server, selenium_driver):
     page = AuthPage(selenium_driver)
@@ -50,3 +54,4 @@ def test_login_invalid_password(live_server, selenium_driver):
     
     toast_msg = page.get_toast_message()
     assert "Mật khẩu không chính xác" in toast_msg or toast_msg != ""
+    page.take_screenshot("login_invalid_password.png")

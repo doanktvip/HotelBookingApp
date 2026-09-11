@@ -19,6 +19,7 @@ def test_logout_success(live_server, selenium_driver, test_db, sample_customer):
     # Kì vọng: Về trang chủ, không còn avatar
     assert not home_page.is_user_avatar_displayed(timeout=2)
     assert selenium_driver.current_url == live_server.url + "/" or "login" in selenium_driver.current_url
+    home_page.take_screenshot("logout_success.png")
 
 def test_access_protected_after_logout(live_server, selenium_driver, test_db, sample_customer):
     # 1. Login
@@ -35,3 +36,4 @@ def test_access_protected_after_logout(live_server, selenium_driver, test_db, sa
         selenium_driver.get(live_server.url + url)
         # Kì vọng: Bị chặn, về login
         assert "login" in selenium_driver.current_url
+    auth_page.take_screenshot("logout_access_protected_denied.png")

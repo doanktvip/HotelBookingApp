@@ -76,6 +76,7 @@ def hotel():
 @hotel_bp.route('/api/search')
 def api_search():
     keyword = request.args.get('keyword', '').strip()
+    
     if not keyword:
         return jsonify({"error": "Missing keyword"}), 400
         

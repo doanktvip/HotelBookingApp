@@ -1,6 +1,6 @@
 from decimal import Decimal
 from flask import g, session
-from app.models import Room, Booking, BookingDetail, BookingStatus, RoomStatus, Payment, PaymentStatus, RefundLog, PricePrediction
+from app.models import Room, Booking, BookingDetail, BookingStatus, RoomStatus, Payment, PaymentStatus, PricePrediction
 from app.services import BaseService
 from datetime import datetime, timedelta
 from app.utils import get_vn_time
@@ -236,16 +236,7 @@ class BookingService(BaseService):
             description=refund_reason
         )
         
-        # 2. Lưu vào DB để đối soát
-        refund_log = RefundLog(
-            order_id=str(order_id),
-            trans_id=str(trans_id),
-            amount=amount,
-            reason=refund_reason
-        )
-        self.db.add(refund_log)
-        self.commit_or_rollback()
-        
+        # 2. Log API Result
         print(f"[MoMo IPN] Đã gọi Refund API cho order {order_id}. Kết quả: {refund_res}")
         return refund_res
 

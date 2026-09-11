@@ -22,6 +22,8 @@
 <!-- Phân trang -->
 {% if hotels_pagination and hotels_pagination.pages > 1 %}
 <div class="d-flex justify-content-center fade-in">
-    {{ ui.render_pagination(hotels_pagination, 'hotel.hotel') }}
+    {% set args = request.args.to_dict() %}
+    {% set _ = args.pop('page', None) %}
+    {{ ui.render_pagination(hotels_pagination, 'hotel.hotel', **args) }}
 </div>
 {% endif %}

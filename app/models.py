@@ -255,6 +255,11 @@ class SystemConfig(db.Model):
     config_key = Column(String(100), unique=True, nullable=False)  # Khóa cấu hình (VD: 'MAX_ROOMS_PER_BOOKING')
     config_value = Column(String(255), nullable=False)  # Giá trị cấu hình (VD: '5')
     description = Column(Text, nullable=True)  # Lời giải thích cho cấu hình này
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # ID Admin cập nhật mới nhất
+    updated_at = Column(DateTime, default=get_vn_time, onupdate=get_vn_time, nullable=False)  # Thời điểm cập nhật
+    
+    # Quan hệ với bảng User để biết ai là người cập nhật
+    updated_by = db.relationship('User', backref='updated_configs', lazy=True)
     
     @staticmethod
     @cache.memoize()
@@ -357,13 +362,3 @@ class PriceHistory(db.Model):
     new_price = Column(DECIMAL(15, 2), nullable=False)
     changed_at = Column(DateTime, default=get_vn_time, nullable=False)
 
-class RefundLog(db.Model):
-    """Bảng lưu vết các giao dịch hoàn tiền tự động (vd: do Overbooking)"""
-    __tablename__ = 'refund_logs'
-
-    id = Column(Integer, primary_key=True)
-    order_id = Column(String(100), nullable=False, index=True)
-    trans_id = Column(String(100), nullable=False)
-    amount = Column(DECIMAL(15, 2), nullable=False)
-    reason = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=get_vn_time, nullable=False)

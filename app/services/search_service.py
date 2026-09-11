@@ -11,17 +11,27 @@ from app.utils import get_vn_time
 class SearchService(BaseService):
     
     def semantic_search(self, keyword, user=None, per_page=8):
-        ai_service = AIService(self.db)
         hotel_service = HotelService(self.db)
         
-        parsed_filters = ai_service.parse_search_query(keyword)
-        
-        if parsed_filters is None:
-            raise Exception("Hệ thống AI đang gặp sự cố. Vui lòng thử lại sau.")
+        # 1. Kiểm tra xem truy vấn này đã được AI phân tích trước đó chưa (Cache Database)
+        existing_history = self.db.query(SearchHistory).filter(
+            SearchHistory.search_query.ilike(keyword)
+        ).order_by(SearchHistory.id.desc()).first()
+
+        if existing_history and existing_history.parsed_data is not None:
+            parsed_filters = existing_history.parsed_data
+        else:
+            # 2. Nếu chưa có thì mới gọi Gemini API
+            ai_service = AIService(self.db)
+            parsed_filters = ai_service.parse_search_query(keyword)
+            
+            if parsed_filters is None:
+                raise Exception("Hệ thống AI đang gặp sự cố. Vui lòng thử lại sau.")
+                
+            has_useful_data = SearchQuerySchema(**parsed_filters).has_useful_data()
+            self.save_search_history(keyword, parsed_filters, has_useful_data, user.id if user else None)
             
         has_useful_data = SearchQuerySchema(**parsed_filters).has_useful_data()
-        
-        self.save_search_history(keyword, parsed_filters, has_useful_data, user.id if user else None)
         
         if has_useful_data:
             return hotel_service.get_hotels(
@@ -45,10 +55,20 @@ class SearchService(BaseService):
         # Kiểm tra xem lịch sử tìm kiếm này đã tồn tại chưa để tránh lưu trùng lặp
         existing_history = self.db.query(SearchHistory).filter(
             SearchHistory.search_query.ilike(keyword)
-        ).first()
+        ).order_by(SearchHistory.id.desc()).first()
         
         if existing_history:
-            return  # Nếu có rồi thì bỏ qua, không tạo thêm dòng mới
+            # Nếu có rồi nhưng chưa có parsed_data thì cập nhật lại
+            if existing_history.parsed_data is None:
+                existing_history.parsed_data = parsed_data
+                existing_history.is_useful = is_useful
+                
+                location = parsed_data.get('location') if parsed_data else None
+                if location and not existing_history.location:
+                    existing_history.location = location
+                    
+                self.commit_or_rollback()
+            return  # Bỏ qua không tạo thêm dòng mới
 
         location = parsed_data.get('location') if parsed_data else None
         ci = parsed_data.get('check_in') if parsed_data else None
@@ -190,7 +210,7 @@ class SearchService(BaseService):
             else_=1
         )
         booking_query = booking_query.order_by(is_today_priority.asc(), Booking.id.asc())
-        bookings_pagination = db.paginate(booking_query.statement, page=page, per_page=per_page, error_out=False)
+        bookings_pagination = booking_query.paginate(page=page, per_page=per_page, error_out=False)
 
         # Tính toán trạng thái "Đang ở"
         for booking in bookings_pagination.items:

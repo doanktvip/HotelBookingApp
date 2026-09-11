@@ -13,6 +13,7 @@ def test_register_success(live_server, selenium_driver, test_db):
     # Kì vọng: Có thông báo đăng ký thành công
     toast_msg = page.get_toast_message()
     assert "Đăng ký thành công" in toast_msg
+    page.take_screenshot("register_success.png")
 
 def test_register_missing_username(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -26,6 +27,7 @@ def test_register_missing_username(live_server, selenium_driver, test_db):
     username_input = page.find(*page.REGISTER_USERNAME)
     validation_msg = username_input.get_attribute("validationMessage")
     assert validation_msg != ""
+    page.take_screenshot("register_missing_username.png")
 
 def test_register_invalid_username(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -36,6 +38,7 @@ def test_register_invalid_username(live_server, selenium_driver, test_db):
     
     toast_msg = page.get_toast_message()
     assert toast_msg != ""
+    page.take_screenshot("register_invalid_username.png")
 
 def test_register_missing_email(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -46,6 +49,7 @@ def test_register_missing_email(live_server, selenium_driver, test_db):
     
     email_input = page.find(*page.REGISTER_EMAIL)
     assert email_input.get_attribute("validationMessage") != ""
+    page.take_screenshot("register_missing_email.png")
 
 def test_register_invalid_email(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -56,6 +60,7 @@ def test_register_invalid_email(live_server, selenium_driver, test_db):
     
     email_input = page.find(*page.REGISTER_EMAIL)
     assert email_input.get_attribute("validationMessage") != ""
+    page.take_screenshot("register_invalid_email.png")
 
 def test_register_missing_password(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -66,6 +71,7 @@ def test_register_missing_password(live_server, selenium_driver, test_db):
     
     pw_input = page.find(*page.REGISTER_PASSWORD)
     assert pw_input.get_attribute("validationMessage") != ""
+    page.take_screenshot("register_missing_password.png")
 
 def test_register_invalid_password(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -77,6 +83,7 @@ def test_register_invalid_password(live_server, selenium_driver, test_db):
     pw_input = page.find(*page.REGISTER_PASSWORD)
     # HTML5 minlength validation
     assert pw_input.get_attribute("validationMessage") != "" or page.get_toast_message() != ""
+    page.take_screenshot("register_invalid_password.png")
 
 def test_register_missing_confirm_password(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -87,6 +94,7 @@ def test_register_missing_confirm_password(live_server, selenium_driver, test_db
     
     cpw_input = page.find(*page.REGISTER_CONFIRM_PASSWORD)
     assert cpw_input.get_attribute("validationMessage") != ""
+    page.take_screenshot("register_missing_confirm_password.png")
 
 def test_register_mismatch_password(live_server, selenium_driver, test_db):
     page = AuthPage(selenium_driver)
@@ -97,3 +105,4 @@ def test_register_mismatch_password(live_server, selenium_driver, test_db):
     
     toast_msg = page.get_toast_message()
     assert "Mật khẩu xác nhận không khớp" in toast_msg or toast_msg != ""
+    page.take_screenshot("register_mismatch_password.png")

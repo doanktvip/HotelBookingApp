@@ -34,24 +34,67 @@ function initSemanticSearchAsync() {
     const keyword = dataElement.getAttribute('data-keyword');
     if (!keyword) return;
 
+    // Lấy số trang từ URL hiện tại nếu có
+    const urlParams = new URLSearchParams(window.location.search);
+    const page = urlParams.get('page') || 1;
+
+    fetchSemanticPage(keyword, page);
+}
+
+function fetchSemanticPage(keyword, page) {
     const container = document.getElementById('hotel-list-container');
+    container.style.opacity = '0.5';
     
-    fetch('/api/search?keyword=' + encodeURIComponent(keyword))
+    fetch('/api/search?keyword=' + encodeURIComponent(keyword) + '&page=' + page)
         .then(response => {
             if (!response.ok) throw new Error("API Lỗi");
             return response.text();
         })
         .then(html => {
             container.innerHTML = html;
+            container.style.opacity = '1';
             initTagsOverflow(); 
+            bindSemanticPagination(keyword);
         })
         .catch(err => {
             console.error(err);
+            container.style.opacity = '1';
             const spinner = document.getElementById('ai-loading-spinner');
             if (spinner) {
                 spinner.innerHTML = '<p class="text-danger">Lỗi khi phân tích bằng AI. Vui lòng thử lại sau.</p>';
             }
         });
+}
+
+function bindSemanticPagination(keyword) {
+    const container = document.getElementById('hotel-list-container');
+    if (!container) return;
+    
+    const links = container.querySelectorAll('.pagination .page-link');
+    links.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const href = this.getAttribute('href');
+            if (!href || href === '#') return;
+            
+            const url = new URL(href, window.location.origin);
+            const page = url.searchParams.get('page');
+            
+            if (page) {
+                // Đổi URL trên trình duyệt
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('page', page);
+                newUrl.searchParams.set('keyword', keyword);
+                window.history.pushState({}, '', newUrl);
+
+                // Load dữ liệu trang mới
+                fetchSemanticPage(keyword, page);
+                
+                // Cuộn nhẹ lên đầu vùng danh sách
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
 }
 
 function initTagsOverflow() {

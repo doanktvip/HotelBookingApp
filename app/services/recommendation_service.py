@@ -48,6 +48,8 @@ class RecommendationService(BaseService):
         
         for search in valid_recent_searches:
             data = search.parsed_data
+            if not data:
+                continue
             
             loc = data.get('location')
             if loc:

@@ -27,6 +27,7 @@ def test_receptionist_view_bookings(live_server, selenium_driver, setup_recept_d
     
     rows = page.get_booking_rows()
     assert len(rows) > 0, "Danh sách không được trống"
+    page.take_screenshot("recept_view_bookings.png")
 
 def test_customer_access_denied(live_server, selenium_driver, sample_customer):
     auth_page = AuthPage(selenium_driver)
@@ -38,6 +39,7 @@ def test_customer_access_denied(live_server, selenium_driver, sample_customer):
     
     # Phải bị đá về trang nào đó hoặc lỗi 403. Nếu 403, title sẽ là Error hoặc về trang chủ
     assert "403" in selenium_driver.page_source or "Quản lý phòng" not in selenium_driver.title
+    auth_page.take_screenshot("customer_manage_booking_denied.png")
 
 def test_search_booking(live_server, selenium_driver, setup_recept_data, sample_customer):
     recept, _, create_b = setup_recept_data
@@ -64,6 +66,7 @@ def test_search_booking(live_server, selenium_driver, setup_recept_data, sample_
     # TC9: Empty search
     page.search(text="")
     assert len(page.get_booking_rows()) >= 1
+    page.take_screenshot("search_booking.png")
 
 def test_filter_status_and_date(live_server, selenium_driver, setup_recept_data):
     recept, _, create_b = setup_recept_data
@@ -83,6 +86,7 @@ def test_filter_status_and_date(live_server, selenium_driver, setup_recept_data)
     # Filter Date = today
     page.search(status="ALL", date="today")
     assert len(page.get_booking_rows()) >= 2
+    page.take_screenshot("filter_status_and_date.png")
 
 def test_checkin(live_server, selenium_driver, setup_recept_data):
     recept, _, create_b = setup_recept_data
@@ -110,6 +114,7 @@ def test_checkin(live_server, selenium_driver, setup_recept_data):
     page.search(text=f"BK-{b3}")
     row_html = page.get_booking_rows()[0].get_attribute('innerHTML')
     assert "value=\"checkin\"" not in row_html
+    page.take_screenshot("checkin_flow.png")
 
 def test_checkout_flow(live_server, selenium_driver, setup_recept_data):
     recept, _, create_b = setup_recept_data
@@ -129,5 +134,6 @@ def test_checkout_flow(live_server, selenium_driver, setup_recept_data):
     page.search(text=f"BK-{b1}")
     row_html = page.get_booking_rows()[0].get_attribute('innerHTML')
     assert "Hoàn thành" in row_html
+    page.take_screenshot("checkout_flow.png")
 
 

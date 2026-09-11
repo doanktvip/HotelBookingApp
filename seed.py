@@ -17,7 +17,7 @@ from app.extensions import db
 from app.models import (
     Hotel, RoomType, Floor, Room, User, UserRole, RoomStatus, Tag,
     Booking, BookingDetail, Payment, BookingStatus, PaymentMethod, PaymentStatus,
-    SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory, RefundLog
+    SystemConfig, OTP, PricePrediction, SearchHistory, PriceHistory
 )
 
 SEED_DATA_DIR = Path(__file__).parent / 'seed_data'
